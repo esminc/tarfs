@@ -1,6 +1,8 @@
 #include "tarfs.h"
 
-void Tarfs::Dir::init(FsMaker *fs)
+using namespace Tarfs;
+
+void Dir::init(FsMaker *fs)
 {
 	tarfs_dext de;
 	uint64_t blkno;
@@ -36,7 +38,7 @@ void Tarfs::Dir::init(FsMaker *fs)
 	this->setDirty();
 	return;
 }
-Tarfs::Inode* Tarfs::Dir::lookup(FsMaker *fs, char *name)
+Inode* Dir::lookup(FsMaker *fs, char *name)
 {
 	uint64_t off = 0;
 	uint64_t endoff = this->dinode.di_size;
@@ -61,19 +63,10 @@ Tarfs::Inode* Tarfs::Dir::lookup(FsMaker *fs, char *name)
 	}
 	return NULL;
 done:
-	Inode *inode;
 	int ftype = TARFS_FTYPE_DIR2DINODE(direct->d_ftype);
-	if (ftype == TARFS_IFDIR) {
-		inode = new Dir(this->ino, direct->d_ino, ftype);
-	} else {
-		inode = new Inode(this->ino, direct->d_ino, ftype);
-	}
-	if (inode) {
-		inode->load(fs);
-	}
-	return inode;
+	return InodeFactory::getInode(fs, direct->d_ino, this->ino, ftype);
 }
-void Tarfs::Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
+void Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
 {
 	uint64_t off = 0;
 	uint64_t endoff = this->dinode.di_size;
@@ -106,7 +99,7 @@ void Tarfs::Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
 	}
 	return;
 }
-void Tarfs::Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode)
+void Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode)
 {
 	tarfs_direct *direct;
 	tarfs_direct *ep;
@@ -121,8 +114,8 @@ void Tarfs::Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *
 		int inx = (int)(dfs->off & (uint64_t)(TAR_BLOCKSIZE -1));
 		direct = (tarfs_direct_t *)&dfs->dirbuf[inx];
 		if (direct->d_ino == TARBLK_NONE) {
-			direct->d_ino = inode->ino;
-			direct->d_ftype = TARFS_FTYPE_DINODE2DIR(inode->dinode.di_mode);
+			direct->d_ino = inode->getIno();
+			direct->d_ftype = inode->getDirFtype();
 			direct->d_namelen = len;
 			memcpy(direct->d_name, name, len);
 		} else {
@@ -131,7 +124,7 @@ void Tarfs::Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *
 			direct->d_reclen = DIRENT_SIZE(direct->d_namelen);
 			ep = (tarfs_direct *)((char*)direct + direct->d_reclen);
 			ep->d_ino = this->ino;
-			ep->d_ftype = TARFS_FTYPE_DINODE2DIR(this->dinode.di_mode);
+			ep->d_ftype =this->getDirFtype();
 			ep->d_namelen = len;
 			ep->d_reclen = org_reclen - DIRENT_SIZE(direct->d_namelen);
 			memcpy(ep->d_name, name, len);
@@ -150,8 +143,8 @@ void Tarfs::Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *
 	this->insBlock(fs, &de);
 	ep = (tarfs_direct *)dfs->dirbuf;
 	ep->d_reclen = TAR_BLOCKSIZE;
-	ep->d_ino = inode->ino;
-	ep->d_ftype = TARFS_FTYPE_DINODE2DIR(inode->dinode.di_mode);
+	ep->d_ino = inode->getIno();
+	ep->d_ftype = inode->getDirFtype();
 	ep->d_namelen = len;
 	memcpy(ep->d_name, name, len);
 
@@ -161,9 +154,10 @@ void Tarfs::Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *
 	return;
 }
 
-Tarfs::Dir* Tarfs::Dir::mkdir(FsMaker *fs, char *name)
+Dir* Dir::mkdir(FsMaker *fs, char *name)
 {
-	Dir *dir = static_cast<Dir*>(Inode::allocInode(fs, this->ino, TARFS_IFDIR));
+	Dir *dir = static_cast<Dir*>(InodeFactory::allocInode(fs, 
+					this->ino, TARFS_IFDIR));
 	if (dir == NULL) {
 		return NULL;
 	}
@@ -175,10 +169,10 @@ Tarfs::Dir* Tarfs::Dir::mkdir(FsMaker *fs, char *name)
 	dir->sync(fs);
 	return dir;
 }
-Tarfs::Inode* Tarfs::Dir::create(FsMaker *fs, File *file)
+Inode* Dir::create(FsMaker *fs, File *file)
 {
 	char *name = (*file)[file->entSize()-1];
-	Inode *inode = Inode::allocInode(fs, this->ino, file->getFtype());
+	Inode *inode = InodeFactory::allocInode(fs, this->ino, file->getFtype());
 	if (inode == NULL) {
 		return NULL;
 	}

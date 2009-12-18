@@ -1,82 +1,90 @@
 #include "tarfs.h"
+using namespace Tarfs;
 
-Tarfs::FsMaker::FsMaker(char *fname)
+FsMaker::FsMaker(char *fname)
 {
 	::memset(this->fname, 0, 4096);
 	::memcpy(this->fname, fname, strlen(fname));
 	this->fd = -1;
 }
-int Tarfs::FsMaker::init()
+FsMaker *FsMaker::create(char *fname)
 {
 	int err;
 	struct stat buf_stat;
 
-	this->dirmgr = NULL;
-	this->iexmgr = NULL;
-	this->dinodemgr = NULL;
-	this->fd = ::open(this->fname, O_RDWR);
-	if (this->fd < 0) {
-		return -1;
+	FsMaker *fsmaker = new FsMaker(fname);
+	if (!fsmaker) {
+		return NULL;
 	}
-	err = ::fstat(fd, &buf_stat);
+	fsmaker->dirmgr = NULL;
+	fsmaker->iexmgr = NULL;
+	fsmaker->dinodemgr = NULL;
+	fsmaker->fd = ::open(fsmaker->fname, O_RDWR);
+	if (fsmaker->fd < 0) {
+		delete fsmaker;
+		return NULL;
+	}
+	err = ::fstat(fsmaker->fd, &buf_stat);
 	if (err < 0) {
 		::fprintf(stderr, "init_mkfs:fstat err=%d\n", errno);
-		return -1;
+		delete fsmaker;
+		return NULL;
 	}
-	this->blks = buf_stat.st_size / TAR_BLOCKSIZE;
-	this->orgblks = buf_stat.st_size / TAR_BLOCKSIZE;
+	fsmaker->blks = buf_stat.st_size / TAR_BLOCKSIZE;
+	fsmaker->orgblks = buf_stat.st_size / TAR_BLOCKSIZE;
 
 	ssize_t res;
         int64_t off = (buf_stat.st_size / TAR_BLOCKSIZE) - 1;
-	res = pread(this->fd, &this->sb, TAR_BLOCKSIZE, off*TAR_BLOCKSIZE);
+	res = pread(fsmaker->fd, &fsmaker->sb, TAR_BLOCKSIZE, off*TAR_BLOCKSIZE);
 	if (res != TAR_BLOCKSIZE){
 		::fprintf(stderr, "init_mkfs:pread err=%d\n", err);
-		return -1;
+		delete fsmaker;
+		return NULL;
 	}
-	if (sb.tarfs_magic == TARSBLOCK_MAGIC) {
-		if (sb.tarfs_flags == TARSBLOCK_FLAG_OK) {
-			return EEXIST;
-		} else {
-			return -1;
-		}
+	if (fsmaker->sb.tarfs_magic == TARSBLOCK_MAGIC) {
+		delete fsmaker;
+		return NULL;
 	}
 	// super block
-	this->sb.tarfs_magic = TARSBLOCK_MAGIC;
-	this->sb.tarfs_size = 0;
-	this->sb.tarfs_dsize = 0;
-	this->sb.tarfs_flist_regdata = TARBLK_NONE;
-	this->sb.tarfs_flist_dirdata = TARBLK_NONE;
-	this->sb.tarfs_flist_iexdata = TARBLK_NONE;
-	this->sb.tarfs_flist_indDinode = TARBLK_NONE;
-	this->sb.tarfs_flist_dinode = TARBLK_NONE;
-	this->sb.tarfs_free = (buf_stat.st_size/TAR_BLOCKSIZE);
-	this->sb.tarfs_root = (buf_stat.st_size/TAR_BLOCKSIZE)+1;
-	this->sb.tarfs_flags = TARSBLOCK_FLAG_OK;
+	fsmaker->sb.tarfs_magic = TARSBLOCK_MAGIC;
+	fsmaker->sb.tarfs_size = 0;
+	fsmaker->sb.tarfs_dsize = 0;
+	fsmaker->sb.tarfs_flist_regdata = TARBLK_NONE;
+	fsmaker->sb.tarfs_flist_dirdata = TARBLK_NONE;
+	fsmaker->sb.tarfs_flist_iexdata = TARBLK_NONE;
+	fsmaker->sb.tarfs_flist_indDinode = TARBLK_NONE;
+	fsmaker->sb.tarfs_flist_dinode = TARBLK_NONE;
+	fsmaker->sb.tarfs_free = (buf_stat.st_size/TAR_BLOCKSIZE);
+	fsmaker->sb.tarfs_root = (buf_stat.st_size/TAR_BLOCKSIZE)+1;
+	fsmaker->sb.tarfs_flags = TARSBLOCK_FLAG_OK;
 
 	// init space managers
-	this->dirmgr = new SpaceManager(ALLOC_DIRDATA_NUM);
-	this->iexmgr = new SpaceManager(ALLOC_IEXDATA_NUM);
-	this->dinodemgr = new SpaceManager(ALLOC_DINODE_NUM);
-	if (!this->dirmgr || !this->iexmgr || !this->dinodemgr) {
-		return false;
+	fsmaker->dirmgr = new SpaceManager(ALLOC_DIRDATA_NUM);
+	fsmaker->iexmgr = new SpaceManager(ALLOC_IEXDATA_NUM);
+	fsmaker->dinodemgr = new SpaceManager(ALLOC_DINODE_NUM);
+	if (!fsmaker->dirmgr || !fsmaker->iexmgr || !fsmaker->dinodemgr) {
+		delete fsmaker;
+		return NULL;
 	}
 	// free dinode
-	bool ret = Inode::init(this);
+	bool ret = InodeFactory::init(fsmaker);
 	if (ret == false) {
-		return false;
+		delete fsmaker;
+		return NULL;
 	}
 
 	// root dinode
-	Inode *inode = Inode::allocInode(this, TARFS_ROOT_INO, TARFS_IFDIR);
+	Inode *inode = InodeFactory::allocInode(fsmaker, TARFS_ROOT_INO, TARFS_IFDIR);
 	if (inode == NULL) {
+		delete fsmaker;
 		return false;
 	}
-	this->root = static_cast<Dir*>(inode);
-	this->root->init(this);
-	return true;
+	fsmaker->root = static_cast<Dir*>(inode);
+	fsmaker->root->init(fsmaker);
+	return fsmaker;
 }
 
-Tarfs::FsMaker::~FsMaker()
+FsMaker::~FsMaker()
 {
 	if (this->fd >= 0) {
 		::close(this->fd);
@@ -93,7 +101,7 @@ Tarfs::FsMaker::~FsMaker()
 	}
 }
 
-void Tarfs::FsMaker::add(File *file)
+void FsMaker::add(File *file)
 {
 	int i;
 	Dir *dir;
@@ -133,13 +141,26 @@ void Tarfs::FsMaker::add(File *file)
 	delete inode;
 	return;
 }
-void Tarfs::FsMaker::rollback()
+void FsMaker::complete()
+{
+	this->sb.tarfs_dsize = 0; /* TODO */
+	this->sb.tarfs_flist_dirdata = this->dirmgr->getblkno();
+	this->sb.tarfs_flist_iexdata = this->iexmgr->getblkno();
+	this->sb.tarfs_flist_dinode = this->dinodemgr->getblkno();
+	this->sb.tarfs_inodes = InodeFactory::getInodeNum();
+	this->sb.tarfs_maxino = InodeFactory::getInodeNum();
+	this->root->sync(this);
+	InodeFactory::fin(this);
+	/* TODO: super block */
+	this->writeBlock((char*)&(this->sb), this->blks, 1);
+}
+void FsMaker::rollback()
 {
 	(void)::ftruncate(this->fd, this->orgblks*TAR_BLOCKSIZE);
 	::exit(1);
 	return;
 }
-void Tarfs::FsMaker::readBlock(char *bufp, uint64_t blkno, ssize_t nblks)
+void FsMaker::readBlock(char *bufp, uint64_t blkno, ssize_t nblks)
 {
 	int err = 0;
 	ssize_t res;
@@ -152,20 +173,20 @@ void Tarfs::FsMaker::readBlock(char *bufp, uint64_t blkno, ssize_t nblks)
 	}
 	return;
 }
-void Tarfs::FsMaker::writeBlock(char *bufp, uint64_t blkno, ssize_t nblks)
+void FsMaker::writeBlock(char *bufp, uint64_t blkno, ssize_t nblks)
 {
 	int err = 0;
 	ssize_t res;
+	if ((blkno + nblks) > this->blks) {
+		this->blks = blkno + nblks;
+		this->sb.tarfs_size = (this->blks - this->orgblks);
+	}
 	res = ::pwrite(this->fd, bufp, TAR_BLOCKSIZE*nblks, 
 				blkno*(uint64_t)TAR_BLOCKSIZE);
 	if (res != (TAR_BLOCKSIZE*nblks)) {
 		err = errno;
 		::fprintf(stderr, "readData:blkno=%lld err = %d\n", blkno, err);
 		this->rollback();
-	}
-	if ((blkno + nblks) > this->blks) {
-		this->blks = blkno + nblks;
-		this->sb.tarfs_size = (this->blks - this->orgblks);
 	}
 	return;
 }

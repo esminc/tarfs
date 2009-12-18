@@ -14,63 +14,83 @@
 #include <vector>
 #include "tarfs_meta.h"
 
+#define MAXPATHLEN	4096
+typedef uint64_t TARBLK;
+
 namespace Tarfs {
-	class File {
+	class Util {
 		private:
-		int numNames;
-		std::vector<char*> names;
-		int pathlen;
-		char path[4096];
+		Util() {}
+		~Util() {}
 		public:
-		tarfs_dext addrExtent;
-		posix_header header;
 		static uint64_t strtoint(char *p, size_t siz);
 		static int getFtype(uint32_t typeflag);
 		static uint64_t getCurrentTime();
-		int getFtype();
-		File(char* path, tarfs_dext *addrExtent, posix_header *header);
-		~File() {}
+	};
+	class File {
+		private:
+		std::vector<char*> *path;
+		posix_header header;
+		tarfs_dext addrExtent;
+		public:
+		uint64_t getMode();
+		uint64_t getUid();
+		uint64_t getGid();
+		uint64_t getMtime();
+		uint64_t getFileSize();
+		uint64_t getBlocks();
+		uint64_t getNumExtents();
+		void     getExtent(tarfs_dext *extent);
+		int      getFtype();
+		File(std::vector<char*> *path, tarfs_dext *addrExtent, 
+							posix_header *header);
+		~File();
 		void printPath();
 		void printHeader();
-		bool parse();
-		inline char* operator [] (int i) { return names[i]; }
-		inline int entSize() { return this->numNames; }
+		inline char* operator [] (int i) { return path->at(i); }
+		inline int entSize() { return this->path->size(); }
 	};
 	class Parser {
 		private:
-		char fname[4096];
 		int fd;
-		uint64_t curblk;
-		public:
+		TARBLK searchBlkno;
+		char fname[MAXPATHLEN];
 		Parser(const char *fname);
+		public:
+		static std::vector<char*> *parsePath(char *path);
+		static Parser *create(const char *fname);
 		~Parser();
-		bool init();
 		File *get();
 	};
 	class FsMaker;
-	class Inode {
+	class Inode;
+	class Dir;
+	class InodeFactory {
 		private:
 		static Inode *freeInode;
 		static uint64_t inodeNum;
+		InodeFactory() {}
+		~InodeFactory() {}
+		public:
+		static bool init(FsMaker *fs);
+		static Inode *allocInode(FsMaker *fs, uint64_t pino, int ftype);
+		static Inode *getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype);
+		static uint64_t getInodeNum() { return inodeNum; }
+		static void fin(Tarfs::FsMaker *fs);
+	};
+	class Inode {
 		int ftype;
 		bool isMod;
 		protected:
+		uint64_t ino;
 		uint64_t pino;
 		uint64_t blkno;
-		bool isLoad;
-		public:
-		uint64_t ino;
 		tarfs_dinode dinode;
-		static bool init(FsMaker *fs);
-		static void setFreeInode(Inode *inode);
-		static Inode *getFreeInode();
-		static Inode *allocInode(FsMaker *fs, uint64_t pino, int ftype);
-		static void incInodeNum();
-		static uint64_t getInodeNum();
-		Inode *getInode(FsMaker *fs, uint64_t ino, uint64_t pino);
+		void initialize(uint64_t ino, uint64_t pino, uint64_t blkno);
+		public:
 		Inode(uint64_t ino, uint64_t pino, uint64_t blkno);
+		Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs);
 		~Inode() {}
-		void load(FsMaker *fs);
 		inline void setFtype(int ftype) {
 			this->ftype = ftype;
 			this->dinode.di_mode = (ftype|0755);
@@ -81,7 +101,9 @@ namespace Tarfs {
 		inline bool isDirty() { return this->isMod; }
 		inline void setDirty() { this->isMod = true; }
 		inline void setClean() { this->isMod = false; }
+		inline uint64_t getIno() { return this->ino; }
 		void setFile(File *file);
+		uint64_t getDirFtype();
 		void insBlock(FsMaker *fs, tarfs_dext *de);
 		void getBlock(FsMaker *fs, uint64_t off, uint64_t *blkno);
 		void sync(FsMaker *fs);
@@ -93,11 +115,13 @@ namespace Tarfs {
 			uint64_t blkno;
 			char	 dirbuf[TAR_BLOCKSIZE];
 		};
-		void searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs);
-		void addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode);
+		void searchFreeSpace(FsMaker *fs, char *name, 
+						dirFreeSpace *dfs);
+		void addDirEntry(FsMaker *fs, char *name, 
+					dirFreeSpace *dfs, Inode *inode);
 		public:
-		Dir(uint64_t ino, uint64_t pino, uint64_t blkno) :
-			Inode(ino, pino, blkno) { }
+		Dir(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs) :
+			Inode(ino, pino, blkno, fs) {}
 		void init(FsMaker *fs);
 		Inode *lookup(FsMaker *fs, char *name);
 		Dir *mkdir(FsMaker *fs, char *name);
@@ -122,7 +146,7 @@ namespace Tarfs {
 	};
 	class FsMaker {
 		private:
-		char fname[4096];
+		char fname[MAXPATHLEN];
 		int fd;
 		uint64_t blks;
 		uint64_t orgblks;
@@ -131,8 +155,9 @@ namespace Tarfs {
 		SpaceManager *dirmgr;
 		SpaceManager *iexmgr;
 		SpaceManager *dinodemgr;
-		public:
 		FsMaker(char *fname);
+		public:
+		static FsMaker *create(char *fname);
 		~FsMaker();
 		inline uint64_t nblks() { return this->blks; }
 		int init();

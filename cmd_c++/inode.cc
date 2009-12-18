@@ -1,43 +1,31 @@
 #include "tarfs.h"
 
-uint64_t Tarfs::Inode::inodeNum;
-Tarfs::Inode* Tarfs::Inode::freeInode;
+using namespace Tarfs;
 
-void Tarfs::Inode::incInodeNum()
+uint64_t InodeFactory::inodeNum;
+Inode* InodeFactory::freeInode;
+
+Inode *InodeFactory::getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype)
 {
-	inodeNum++;
-}
-uint64_t Tarfs::Inode::getInodeNum()
-{
-	return inodeNum;
-}
-void Tarfs::Inode::setFreeInode(Inode *inode)
-{
-	freeInode = inode;
-}
-Tarfs::Inode *Tarfs::Inode::getFreeInode()
-{
-	return freeInode;
-}
-Tarfs::Inode *getInode(Tarfs::FsMaker *fs, uint64_t ino, uint64_t pino)
-{
+	Inode *inode;
 	uint64_t blkno;
-	Tarfs::Inode::getFreeInode()->getBlock(fs, ino, &blkno);
-	Tarfs::Inode *inode =  new Tarfs::Inode(ino, pino, blkno);
-	if (inode == NULL) {
-		return NULL;
+	InodeFactory::freeInode->getBlock(fs, ino, &blkno);
+	if (ftype == TARFS_IFDIR) {
+		inode = new Dir(ino, pino, blkno, fs);
+	} else {
+		inode = new Inode(ino, pino, blkno, fs);
 	}
-	inode->load(fs);
 	return inode;
 }
-bool Tarfs::Inode::init(FsMaker *fs)
+
+bool InodeFactory::init(FsMaker *fs)
 {
 	tarfs_dext de;
 	SpaceManager *sp = fs->getDinodeManager();
 
 	uint64_t blkno;
 	sp->allocBlock(fs, &blkno);
-	de.de_off = Inode::getInodeNum();
+	de.de_off = InodeFactory::inodeNum = 0;
 	de.de_blkno = blkno;
 	de.de_nblks = sp->getbulks();
 	Inode *inode = new Inode(TARFS_FREE_INO, TARFS_FREE_INO, blkno);
@@ -45,14 +33,19 @@ bool Tarfs::Inode::init(FsMaker *fs)
 		return false;
 	}
 	inode->insBlock(fs, &de);
-	Inode::setFreeInode(inode);
-	Inode::incInodeNum();
+	InodeFactory::freeInode = inode;
+	InodeFactory::inodeNum++;
 	return true;
 }
-Tarfs::Inode *Tarfs::Inode::allocInode(Tarfs::FsMaker *fs, uint64_t pino, int ftype)
+void InodeFactory::fin(FsMaker *fs)
 {
-	tarfs_dext de;
-	uint64_t ino = Inode::getInodeNum();
+	InodeFactory::freeInode->sync(fs);
+	delete InodeFactory::freeInode;
+}
+Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
+{
+	Inode *inode;
+	uint64_t ino = InodeFactory::inodeNum;
 	uint64_t blkno;
 	uint64_t oldblkno;
 	SpaceManager *sp = fs->getDinodeManager();
@@ -60,35 +53,31 @@ Tarfs::Inode *Tarfs::Inode::allocInode(Tarfs::FsMaker *fs, uint64_t pino, int ft
 	oldblkno = sp->getblkno();
 	sp->allocBlock(fs, &blkno);
 	if (oldblkno == TARBLK_NONE) {
+		tarfs_dext de;
 		de.de_off = ino;
 		de.de_blkno = blkno;
 		de.de_nblks = sp->getbulks();
-		Inode::freeInode->insBlock(fs, &de);
+		InodeFactory::freeInode->insBlock(fs, &de);
 	}
-	Inode *inode;
 	if (ftype == TARFS_IFDIR) {
-		inode = new Dir(ino, pino, blkno);
+		inode = new Dir(ino, pino, blkno, fs);
 	} else {
-		inode = new Inode(ino, pino, blkno);
+		inode = new Inode(ino, pino, blkno, fs);
 	}
-	if (inode == NULL) {
-		return NULL;
+	if (inode) {
+		inode->setFtype(ftype);
+		InodeFactory::inodeNum++;
 	}
-	inode->load(fs);
-	inode->setFtype(ftype);
-	Inode::incInodeNum();
 	return inode;
 }
-
-Tarfs::Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno)
- {
-	this->isLoad = false;
+void Inode::initialize(uint64_t ino, uint64_t pino, uint64_t blkno)
+{
 	this->ino = ino;
 	this->pino = pino;
 	this->blkno = blkno;
         memset(&this->dinode, 0, TAR_BLOCKSIZE);
         this->dinode.di_magic = TARDINODE_MAGIC;
-        uint64_t now = File::getCurrentTime();
+        uint64_t now = Util::getCurrentTime();
 	this->dinode.di_atime = now;
 	this->dinode.di_ctime = now;
 	this->dinode.di_mtime = now;
@@ -98,34 +87,14 @@ Tarfs::Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno)
 	this->dinode.di_mode = 0;
         this->dinode.di_nlink = 1;
 }
-void Tarfs::Inode::setFile(File *file)
+Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno)
 {
-	this->setDirty();
-	int ftype = file->getFtype();
-	this->dinode.di_mode = ftype;
-	this->dinode.di_mode |= File::strtoint(file->header.mode, sizeof(file->header.mode));
-	this->dinode.di_uid = File::strtoint(file->header.uid, sizeof(file->header.uid));
-	this->dinode.di_gid = File::strtoint(file->header.gid, sizeof(file->header.gid));
-	this->dinode.di_mtime = File::strtoint(file->header.mtime, sizeof(file->header.mtime));
-	this->dinode.di_mtime *=1000000;
-	this->dinode.di_atime = this->dinode.di_ctime = this->dinode.di_mtime;
-	if (ftype == TARFS_IFREG) {
-		this->dinode.di_size =File::strtoint(file->header.size, sizeof(file->header.size));
-		this->dinode.di_blocks = TARFS_BLOCKS(this->dinode.di_size);
-		if (this->dinode.di_blocks > 0) {
-			this->dinode.di_nExtents = 1;
-			this->dinode.di_directExtent[0] = file->addrExtent;
-		}
-	} else if (ftype == TARFS_IFLNK) {
-		this->dinode.di_size = strlen(file->header.linkname);
-		this->dinode.di_blocks = 0;
-	}
-	return;
+	this->initialize(ino, pino, blkno);
 }
-void Tarfs::Inode::load(FsMaker *fs)
+Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs)
 {
+	this->initialize(ino, pino, blkno);
 	fs->readBlock((char*)&this->dinode, this->blkno, 1);
-	this->isLoad = true;
 	if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFREG) {
 		this->ftype = TARFS_IFREG;
 	} else if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFDIR) {
@@ -133,9 +102,27 @@ void Tarfs::Inode::load(FsMaker *fs)
 	} else if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFLNK) {
 		this->ftype = TARFS_IFLNK;
 	}
+}
+void Inode::setFile(File *file)
+{
+	this->setDirty();
+	this->dinode.di_mode = file->getFtype() | file->getMode();
+	this->dinode.di_uid = file->getUid();
+	this->dinode.di_gid = file->getGid();
+	this->dinode.di_mtime = file->getMtime();
+	this->dinode.di_mtime *=1000000;
+	this->dinode.di_atime = this->dinode.di_ctime = this->dinode.di_mtime;
+	this->dinode.di_size =file->getFileSize();
+	this->dinode.di_blocks = file->getBlocks();
+	this->dinode.di_nExtents = file->getNumExtents();;
+	file->getExtent(&(this->dinode.di_directExtent[0]));
 	return;
 }
-void Tarfs::Inode::insBlock(FsMaker *fs, tarfs_dext *de)
+uint64_t Inode::getDirFtype()
+{ 
+	return TARFS_FTYPE_DINODE2DIR(this->dinode.di_mode);
+}
+void Inode::insBlock(FsMaker *fs, tarfs_dext *de)
 {
 	SpaceManager *iexmgr = fs->getIexManager();
 	tarfs_indExt indExt;
@@ -213,7 +200,7 @@ done:
 	}
 	return;
 }
-void Tarfs::Inode::sync(FsMaker *fs)
+void Inode::sync(FsMaker *fs)
 {
 	if (!this->isDirty()) {
 		return;
@@ -222,7 +209,7 @@ void Tarfs::Inode::sync(FsMaker *fs)
 	return;
 
 }
-void Tarfs::Inode::getBlock(FsMaker *fs, uint64_t off, uint64_t *blkno)
+void Inode::getBlock(FsMaker *fs, uint64_t off, uint64_t *blkno)
 {
 	uint64_t inx;
 	tarfs_indExt_t indExt;

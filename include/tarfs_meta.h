@@ -94,9 +94,8 @@ struct tarfs_sblock {
 	uint64_t	tarfs_root;
 	uint64_t	tarfs_free;
 	uint64_t	tarfs_flags;
-	uint64_t	tarfs_indDinodeExt;
 	uint64_t	tarfs_maxino;
-	char		tarfs_padding[392];
+	char		tarfs_padding[400];
 };
 typedef struct tarfs_sblock tarfs_sblock_t;
 
