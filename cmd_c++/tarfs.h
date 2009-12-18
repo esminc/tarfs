@@ -30,9 +30,11 @@ namespace Tarfs {
 	class File {
 		private:
 		std::vector<char*> *path;
+		TARBLK blkno_header;
 		posix_header header;
 		tarfs_dext addrExtent;
 		public:
+		TARBLK   getBlknoHeader() { return this->blkno_header; }
 		uint64_t getMode();
 		uint64_t getUid();
 		uint64_t getGid();
@@ -43,7 +45,7 @@ namespace Tarfs {
 		void     getExtent(tarfs_dext *extent);
 		int      getFtype();
 		File(std::vector<char*> *path, tarfs_dext *addrExtent, 
-							posix_header *header);
+					TARBLK blkno_header, posix_header *header);
 		~File();
 		void printPath();
 		void printHeader();
@@ -69,13 +71,16 @@ namespace Tarfs {
 		private:
 		static Inode *freeInode;
 		static uint64_t inodeNum;
+		static TARBLK totalDataSize;
 		InodeFactory() {}
 		~InodeFactory() {}
 		public:
 		static bool init(FsMaker *fs);
+		static Inode *allocInode(FsMaker *fs, uint64_t pino, File *file);
 		static Inode *allocInode(FsMaker *fs, uint64_t pino, int ftype);
 		static Inode *getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype);
 		static uint64_t getInodeNum() { return inodeNum; }
+		static TARBLK getTotalDataSize() { return totalDataSize; }
 		static void fin(Tarfs::FsMaker *fs);
 	};
 	class Inode {
@@ -89,6 +94,7 @@ namespace Tarfs {
 		void initialize(uint64_t ino, uint64_t pino, uint64_t blkno);
 		public:
 		Inode(uint64_t ino, uint64_t pino, uint64_t blkno);
+		Inode(uint64_t ino, uint64_t pino, uint64_t blkno, int ftype);
 		Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs);
 		~Inode() {}
 		inline void setFtype(int ftype) {
@@ -120,6 +126,8 @@ namespace Tarfs {
 		void addDirEntry(FsMaker *fs, char *name, 
 					dirFreeSpace *dfs, Inode *inode);
 		public:
+		Dir(uint64_t ino, uint64_t pino, uint64_t blkno) :
+			Inode(ino, pino, blkno, TARFS_IFDIR) {}
 		Dir(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs) :
 			Inode(ino, pino, blkno, fs) {}
 		void init(FsMaker *fs);

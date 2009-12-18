@@ -3,6 +3,7 @@
 using namespace Tarfs;
 
 uint64_t InodeFactory::inodeNum;
+TARBLK InodeFactory::totalDataSize;
 Inode* InodeFactory::freeInode;
 
 Inode *InodeFactory::getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype)
@@ -14,6 +15,9 @@ Inode *InodeFactory::getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftyp
 		inode = new Dir(ino, pino, blkno, fs);
 	} else {
 		inode = new Inode(ino, pino, blkno, fs);
+	}
+	if (!inode) {
+		fs->rollback();
 	}
 	return inode;
 }
@@ -35,6 +39,7 @@ bool InodeFactory::init(FsMaker *fs)
 	inode->insBlock(fs, &de);
 	InodeFactory::freeInode = inode;
 	InodeFactory::inodeNum++;
+	InodeFactory::totalDataSize = 0;
 	return true;
 }
 void InodeFactory::fin(FsMaker *fs)
@@ -60,16 +65,31 @@ Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
 		InodeFactory::freeInode->insBlock(fs, &de);
 	}
 	if (ftype == TARFS_IFDIR) {
-		inode = new Dir(ino, pino, blkno, fs);
+		inode = new Dir(ino, pino, blkno);
 	} else {
-		inode = new Inode(ino, pino, blkno, fs);
+		inode = new Inode(ino, pino, blkno, ftype);
 	}
 	if (inode) {
+		inode->setDirty();
 		inode->setFtype(ftype);
 		InodeFactory::inodeNum++;
+	} else {
+		fs->rollback();
 	}
 	return inode;
 }
+Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, File *file)
+{
+	Inode *inode = InodeFactory::allocInode(fs, pino, file->getFtype());
+	if (inode) {
+		inode->setFile(file);
+		if (file->getFtype() == TARFS_IFREG) {
+			InodeFactory::totalDataSize += file->getBlocks();
+		}
+	}
+	return inode;
+}
+
 void Inode::initialize(uint64_t ino, uint64_t pino, uint64_t blkno)
 {
 	this->ino = ino;
@@ -91,6 +111,11 @@ Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno)
 {
 	this->initialize(ino, pino, blkno);
 }
+Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, int ftype)
+{
+	this->initialize(ino, pino, blkno);
+	this->ftype = ftype;
+}
 Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs)
 {
 	this->initialize(ino, pino, blkno);
@@ -106,6 +131,7 @@ Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs)
 void Inode::setFile(File *file)
 {
 	this->setDirty();
+	this->dinode.di_header = file->getBlknoHeader();
 	this->dinode.di_mode = file->getFtype() | file->getMode();
 	this->dinode.di_uid = file->getUid();
 	this->dinode.di_gid = file->getGid();

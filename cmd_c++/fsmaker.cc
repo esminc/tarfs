@@ -92,12 +92,15 @@ FsMaker::~FsMaker()
 	}
 	if (this->dirmgr) {
 		delete this->dirmgr;
+		this->dirmgr = NULL;
 	}
 	if (this->iexmgr) {
 		delete this->iexmgr;
+		this->iexmgr = NULL;
 	}
 	if (this->dinodemgr) {
 		delete this->dinodemgr;
+		this->dinodemgr = NULL;
 	}
 }
 
@@ -106,44 +109,38 @@ void FsMaker::add(File *file)
 	int i;
 	Dir *dir;
 	Dir *parent = this->root;
-	Inode *found;
+	Inode *inode;
 
-	for (i = 0; i < file->entSize() - 1; i++, parent = dir) {
-		dir = NULL;
+	for (dir = parent, i = 0; i < file->entSize(); i++, parent = dir) {
 		char *name = (*file)[i]; /* name in path */
-		found = parent->lookup(this, name);
-		if (!found) { 
-			/* create directory */
-			dir = parent->mkdir(this, name);
-		} else if (found->isDir()){ 
-			dir = static_cast<Dir*>(found);
+		inode = parent->lookup(this, name);
+		if (i < (file->entSize() - 1)) { /* create directory */
+			if (!inode) {
+				inode = dir = parent->mkdir(this, name);
+			} else if (inode->isDir()) { 
+				dir = static_cast<Dir*>(inode);
+			} else { /* assert check */
+				this->rollback();
+			}
+		} else { /* create last file */
+			if (!inode) {
+				inode = parent->create(this, file);
+			} else {
+				inode->setFile(file);
+			}
 		}
-		if (dir == NULL) {
-			this->rollback();
-		}
+		inode->sync(this);
 		if (dir != this->root) {
+			parent->sync(this);
 			delete parent;
 		}
 	}
-	Inode *inode = NULL;
-	/* last name */
-	found = parent->lookup(this, (*file)[file->entSize()-1]);
-	if (!found) {
-		inode = parent->create(this, file);
-	} else {
-		inode = found;
-		inode->setFile(file);
-	}
-	if (!inode) {
-		this->rollback();
-	}
-	inode->sync(this);
 	delete inode;
 	return;
 }
 void FsMaker::complete()
 {
-	this->sb.tarfs_dsize = 0; /* TODO */
+	this->sb.tarfs_dsize = InodeFactory::getTotalDataSize();
 	this->sb.tarfs_flist_dirdata = this->dirmgr->getblkno();
 	this->sb.tarfs_flist_iexdata = this->iexmgr->getblkno();
 	this->sb.tarfs_flist_dinode = this->dinodemgr->getblkno();
@@ -151,7 +148,6 @@ void FsMaker::complete()
 	this->sb.tarfs_maxino = InodeFactory::getInodeNum();
 	this->root->sync(this);
 	InodeFactory::fin(this);
-	/* TODO: super block */
 	this->writeBlock((char*)&(this->sb), this->blks, 1);
 }
 void FsMaker::rollback()

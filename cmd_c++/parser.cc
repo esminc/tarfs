@@ -104,18 +104,20 @@ File* Parser::get()
 	addr.de_off = 0;
 	addr.de_blkno = this->searchBlkno + 1; /* data offset */
 	addr.de_nblks = data_blks; /* data size */
-	this->searchBlkno += (addr.de_nblks + 1);
-	File *file =  new File(names, &addr, &header);
+	File *file =  new File(names, &addr, this->searchBlkno, &header);
 	if (!file) {
 		names->clear();
 		delete names;
 	}
+	this->searchBlkno += (addr.de_nblks + 1);
 	return file;
 }
-File::File(std::vector<char*> *path, tarfs_dext *addr, posix_header *header)
+File::File(std::vector<char*> *path, tarfs_dext *addr, 
+		TARBLK blkno_header, posix_header *header)
 {
 	this->path = path;
 	this->addrExtent = *addr;
+	this->blkno_header = blkno_header;
 	this->header = *header;
 }
 File::~File()
@@ -219,7 +221,7 @@ uint64_t File::getMtime()
 uint64_t File::getFileSize()
 {
 	if (this->getFtype() == TARFS_IFLNK) {
-		return Util::strtoint(this->header.linkname, sizeof(this->header.linkname));
+		return ::strlen(this->header.linkname);
 	} else {
 		return Util::strtoint(this->header.size, sizeof(this->header.size));
 	}

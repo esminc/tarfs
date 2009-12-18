@@ -9,6 +9,7 @@ void Dir::init(FsMaker *fs)
 	char buf[TAR_BLOCKSIZE];
 	SpaceManager *sp = fs->getDirManager();
 
+	this->setDirty();
 	// get new entry
 	sp->allocBlock(fs, &blkno);
 	de.de_off = this->dinode.di_blocks;
@@ -35,7 +36,6 @@ void Dir::init(FsMaker *fs)
 	this->dinode.di_nlink++;
 	this->dinode.di_blocks=1;
 	this->dinode.di_size = TAR_BLOCKSIZE;
-	this->setDirty();
 	return;
 }
 Inode* Dir::lookup(FsMaker *fs, char *name)
@@ -105,10 +105,10 @@ void Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode)
 	tarfs_direct *ep;
 	int len = strlen(name);
 
+	this->setDirty();
 	if (inode->isDir()) {
 		this->dinode.di_nlink++;
 	}
-	this->setDirty();
 	// existing entry
 	if (dfs->off != TARBLK_NONE) {
 		int inx = (int)(dfs->off & (uint64_t)(TAR_BLOCKSIZE -1));
@@ -123,8 +123,8 @@ void Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode)
 			org_reclen = direct->d_reclen;
 			direct->d_reclen = DIRENT_SIZE(direct->d_namelen);
 			ep = (tarfs_direct *)((char*)direct + direct->d_reclen);
-			ep->d_ino = this->ino;
-			ep->d_ftype =this->getDirFtype();
+			ep->d_ino = inode->getIno();
+			ep->d_ftype =inode->getDirFtype();
 			ep->d_namelen = len;
 			ep->d_reclen = org_reclen - DIRENT_SIZE(direct->d_namelen);
 			memcpy(ep->d_name, name, len);
@@ -158,24 +158,17 @@ Dir* Dir::mkdir(FsMaker *fs, char *name)
 {
 	Dir *dir = static_cast<Dir*>(InodeFactory::allocInode(fs, 
 					this->ino, TARFS_IFDIR));
-	if (dir == NULL) {
-		return NULL;
-	}
 	dir->init(fs);
 	dirFreeSpace dfs;
 	dfs.off = TARBLK_NONE;
 	this->searchFreeSpace(fs, name, &dfs);
 	this->addDirEntry(fs, name, &dfs, dir);
-	dir->sync(fs);
 	return dir;
 }
 Inode* Dir::create(FsMaker *fs, File *file)
 {
 	char *name = (*file)[file->entSize()-1];
-	Inode *inode = InodeFactory::allocInode(fs, this->ino, file->getFtype());
-	if (inode == NULL) {
-		return NULL;
-	}
+	Inode *inode = InodeFactory::allocInode(fs, this->ino, file);
 	if (inode->isDir()) {
 		Dir *dir = static_cast<Dir*>(inode);
 		dir->init(fs);
@@ -184,6 +177,5 @@ Inode* Dir::create(FsMaker *fs, File *file)
 	dfs.off = TARBLK_NONE;
 	this->searchFreeSpace(fs, name, &dfs);
 	this->addDirEntry(fs, name, &dfs, inode);
-	inode->sync(fs);
 	return inode;
 }
