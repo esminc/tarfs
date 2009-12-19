@@ -2,7 +2,7 @@
 
 using namespace Tarfs;
 
-void Dir::init(FsMaker *fs)
+void Dir::dirInit(FsMaker *fs)
 {
 	tarfs_dext de;
 	uint64_t blkno;
@@ -158,7 +158,6 @@ Dir* Dir::mkdir(FsMaker *fs, char *name)
 {
 	Dir *dir = static_cast<Dir*>(InodeFactory::allocInode(fs, 
 					this->ino, TARFS_IFDIR));
-	dir->init(fs);
 	dirFreeSpace dfs;
 	dfs.off = TARBLK_NONE;
 	this->searchFreeSpace(fs, name, &dfs);
@@ -169,10 +168,6 @@ Inode* Dir::create(FsMaker *fs, File *file)
 {
 	char *name = (*file)[file->entSize()-1];
 	Inode *inode = InodeFactory::allocInode(fs, this->ino, file);
-	if (inode->isDir()) {
-		Dir *dir = static_cast<Dir*>(inode);
-		dir->init(fs);
-	}
 	dirFreeSpace dfs;
 	dfs.off = TARBLK_NONE;
 	this->searchFreeSpace(fs, name, &dfs);

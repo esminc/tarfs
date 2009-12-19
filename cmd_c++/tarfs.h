@@ -130,7 +130,7 @@ namespace Tarfs {
 			Inode(ino, pino, blkno, TARFS_IFDIR) {}
 		Dir(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs) :
 			Inode(ino, pino, blkno, fs) {}
-		void init(FsMaker *fs);
+		void dirInit(FsMaker *fs);
 		Inode *lookup(FsMaker *fs, char *name);
 		Dir *mkdir(FsMaker *fs, char *name);
 		Inode *create(FsMaker *fs, File *file);

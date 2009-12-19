@@ -80,7 +80,6 @@ FsMaker *FsMaker::create(char *fname)
 		return false;
 	}
 	fsmaker->root = static_cast<Dir*>(inode);
-	fsmaker->root->init(fsmaker);
 	return fsmaker;
 }
 

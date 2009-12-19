@@ -46,6 +46,7 @@ void InodeFactory::fin(FsMaker *fs)
 {
 	InodeFactory::freeInode->sync(fs);
 	delete InodeFactory::freeInode;
+	InodeFactory::freeInode = NULL;
 }
 Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
 {
@@ -65,7 +66,9 @@ Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
 		InodeFactory::freeInode->insBlock(fs, &de);
 	}
 	if (ftype == TARFS_IFDIR) {
-		inode = new Dir(ino, pino, blkno);
+		Dir *dir = new Dir(ino, pino, blkno);
+		dir->dirInit(fs);
+		inode = dir;
 	} else {
 		inode = new Inode(ino, pino, blkno, ftype);
 	}
@@ -115,6 +118,7 @@ Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, int ftype)
 {
 	this->initialize(ino, pino, blkno);
 	this->ftype = ftype;
+	this->dinode.di_mode = ftype | 0755;
 }
 Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs)
 {
