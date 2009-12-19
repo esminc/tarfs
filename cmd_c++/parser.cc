@@ -6,7 +6,7 @@ Parser::Parser(const char *fname)
 	::memset(this->fname, 0, 4096);
 	::memcpy(this->fname, fname, strlen(fname));
 	this->fd = -1;
-	this->searchBlkno = 0;
+	this->curoff = 0;
 }
 Parser *Parser::create(const char *fname)
 {
@@ -37,7 +37,7 @@ File* Parser::get()
 
 	/* read tar headdr */
 	res = ::pread(this->fd, (void*)&header, 
-			TAR_BLOCKSIZE, this->searchBlkno*TAR_BLOCKSIZE);
+			TAR_BLOCKSIZE, this->curoff*TAR_BLOCKSIZE);
 	if (res != TAR_BLOCKSIZE) {
 		fprintf(stderr, "parse_tar:pread(2) err=%d\n", errno);
 		return NULL;
@@ -67,17 +67,17 @@ File* Parser::get()
 						sizeof(header.size));
 		path_blks = TARFS_BLOCKS(path_size);
 		/* read path */
-		this->searchBlkno++;
+		this->curoff++;
 		res = ::pread(this->fd, path, path_blks*TAR_BLOCKSIZE, 
-					(this->searchBlkno)*TAR_BLOCKSIZE);
+					(this->curoff)*TAR_BLOCKSIZE);
 		if (res != (path_blks*TAR_BLOCKSIZE)) {
 			fprintf(stderr, "tarfs: failed to read headers\n");
 			return NULL;
 		}
 		/* read real header */
-		this->searchBlkno += path_blks;
+		this->curoff += path_blks;
 		res = ::pread(this->fd, (void*)&header, TAR_BLOCKSIZE, 
-					(this->searchBlkno)*TAR_BLOCKSIZE);
+					(this->curoff)*TAR_BLOCKSIZE);
 		if (res != TAR_BLOCKSIZE) {
 			fprintf(stderr, "tarfs: failed to read headers\n");
 			return NULL;
@@ -102,14 +102,14 @@ File* Parser::get()
 		data_blks = TARFS_BLOCKS(data_size);
 	}
 	addr.de_off = 0;
-	addr.de_blkno = this->searchBlkno + 1; /* data offset */
+	addr.de_blkno = this->curoff + 1; /* data offset */
 	addr.de_nblks = data_blks; /* data size */
-	File *file =  new File(names, &addr, this->searchBlkno, &header);
+	File *file =  new File(names, &addr, this->curoff, &header);
 	if (!file) {
 		names->clear();
 		delete names;
 	}
-	this->searchBlkno += (addr.de_nblks + 1);
+	this->curoff += (addr.de_nblks + 1);
 	return file;
 }
 File::File(std::vector<char*> *path, tarfs_dext *addr, 
@@ -202,23 +202,23 @@ int File::getFtype()
 {
 	return Util::getFtype(this->header.typeflag);
 }
-uint64_t File::getMode()
+TARMODE File::getMode()
 {
 	return Util::strtoint(this->header.mode, sizeof(this->header.mode));
 }
-uint64_t File::getUid()
+TARUID File::getUid()
 {
 	return Util::strtoint(this->header.uid, sizeof(this->header.gid));
 }
-uint64_t File::getGid()
+TARGID File::getGid()
 {
 	return Util::strtoint(this->header.gid, sizeof(this->header.gid));
 }
-uint64_t File::getMtime()
+TARTIME File::getMtime()
 {
 	return Util::strtoint(this->header.mtime, sizeof(this->header.mtime));
 }
-uint64_t File::getFileSize()
+TARSIZE File::getFileSize()
 {
 	if (this->getFtype() == TARFS_IFLNK) {
 		return ::strlen(this->header.linkname);
@@ -226,7 +226,7 @@ uint64_t File::getFileSize()
 		return Util::strtoint(this->header.size, sizeof(this->header.size));
 	}
 }
-uint64_t File::getBlocks()
+TARBLK File::getBlocks()
 {
 	if (this->getFtype() == TARFS_IFREG) {
 		return TARFS_BLOCKS(this->getFileSize());
@@ -234,7 +234,7 @@ uint64_t File::getBlocks()
 		return 0;
 	}
 }
-uint64_t File::getNumExtents()
+TARNEXT File::getNumExtents()
 {
 	if (this->getFtype() == TARFS_IFREG &&
 		this->getFileSize() > 0) {
@@ -265,11 +265,11 @@ int Util::getFtype(uint32_t typeflag)
 	return ftype;
 }
 
-uint64_t Util::getCurrentTime()
+TARTIME Util::getCurrentTime()
 {
-	uint64_t now;
+	TARTIME now;
 	struct timeval tv;
 	(void)::gettimeofday(&tv, NULL);
-	now = (((uint64_t)tv.tv_sec)*(uint64_t)1000000) + (uint64_t)tv.tv_usec;
+	now = (((TARTIME)tv.tv_sec)*(TARTIME)1000000) + (TARTIME)tv.tv_usec;
 	return now;
 }

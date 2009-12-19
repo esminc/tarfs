@@ -5,7 +5,7 @@ using namespace Tarfs;
 void Dir::dirInit(FsMaker *fs)
 {
 	tarfs_dext de;
-	uint64_t blkno;
+	TARBLK blkno;
 	char buf[TAR_BLOCKSIZE];
 	SpaceManager *sp = fs->getDirManager();
 
@@ -40,9 +40,9 @@ void Dir::dirInit(FsMaker *fs)
 }
 Inode* Dir::lookup(FsMaker *fs, char *name)
 {
-	uint64_t off = 0;
-	uint64_t endoff = this->dinode.di_size;
-	uint64_t dirblkno;
+	TAROFF off = 0;
+	TAROFF endoff = this->dinode.di_size;
+	TARBLK dirblkno;
 	char 	 dirbuf[TAR_BLOCKSIZE];
 	tarfs_direct *direct;
 	int len = ::strlen(name);
@@ -68,9 +68,9 @@ done:
 }
 void Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
 {
-	uint64_t off = 0;
-	uint64_t endoff = this->dinode.di_size;
-	uint64_t dirblkno;
+	TAROFF off = 0;
+	TAROFF endoff = this->dinode.di_size;
+	TARBLK dirblkno;
 	char 	 dirbuf[TAR_BLOCKSIZE];
 	tarfs_direct *direct;
 	int len = ::strlen(name);
@@ -111,7 +111,7 @@ void Dir::addDirEntry(FsMaker *fs, char *name, dirFreeSpace *dfs, Inode *inode)
 	}
 	// existing entry
 	if (dfs->off != TARBLK_NONE) {
-		int inx = (int)(dfs->off & (uint64_t)(TAR_BLOCKSIZE -1));
+		int inx = (int)(dfs->off & (TAROFF)(TAR_BLOCKSIZE -1));
 		direct = (tarfs_direct_t *)&dfs->dirbuf[inx];
 		if (direct->d_ino == TARBLK_NONE) {
 			direct->d_ino = inode->getIno();

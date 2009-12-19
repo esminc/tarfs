@@ -2,14 +2,14 @@
 
 using namespace Tarfs;
 
-uint64_t InodeFactory::inodeNum;
+TARINO InodeFactory::inodeNum;
 TARBLK InodeFactory::totalDataSize;
 Inode* InodeFactory::freeInode;
 
-Inode *InodeFactory::getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype)
+Inode *InodeFactory::getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype)
 {
 	Inode *inode;
-	uint64_t blkno;
+	TARBLK blkno;
 	InodeFactory::freeInode->getBlock(fs, ino, &blkno);
 	if (ftype == TARFS_IFDIR) {
 		inode = new Dir(ino, pino, blkno, fs);
@@ -27,7 +27,7 @@ bool InodeFactory::init(FsMaker *fs)
 	tarfs_dext de;
 	SpaceManager *sp = fs->getDinodeManager();
 
-	uint64_t blkno;
+	TARBLK blkno;
 	sp->allocBlock(fs, &blkno);
 	de.de_off = InodeFactory::inodeNum = 0;
 	de.de_blkno = blkno;
@@ -48,12 +48,12 @@ void InodeFactory::fin(FsMaker *fs)
 	delete InodeFactory::freeInode;
 	InodeFactory::freeInode = NULL;
 }
-Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
+Inode *InodeFactory::allocInode(FsMaker *fs, TARINO pino, int ftype)
 {
 	Inode *inode;
-	uint64_t ino = InodeFactory::inodeNum;
-	uint64_t blkno;
-	uint64_t oldblkno;
+	TARINO ino = InodeFactory::inodeNum;
+	TARBLK blkno;
+	TARBLK oldblkno;
 	SpaceManager *sp = fs->getDinodeManager();
 
 	oldblkno = sp->getblkno();
@@ -81,7 +81,7 @@ Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, int ftype)
 	}
 	return inode;
 }
-Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, File *file)
+Inode *InodeFactory::allocInode(FsMaker *fs, TARINO pino, File *file)
 {
 	Inode *inode = InodeFactory::allocInode(fs, pino, file->getFtype());
 	if (inode) {
@@ -93,14 +93,14 @@ Inode *InodeFactory::allocInode(FsMaker *fs, uint64_t pino, File *file)
 	return inode;
 }
 
-void Inode::initialize(uint64_t ino, uint64_t pino, uint64_t blkno)
+void Inode::initialize(TARINO ino, TARINO pino, TARBLK blkno)
 {
 	this->ino = ino;
 	this->pino = pino;
 	this->blkno = blkno;
         memset(&this->dinode, 0, TAR_BLOCKSIZE);
         this->dinode.di_magic = TARDINODE_MAGIC;
-        uint64_t now = Util::getCurrentTime();
+        TARTIME now = Util::getCurrentTime();
 	this->dinode.di_atime = now;
 	this->dinode.di_ctime = now;
 	this->dinode.di_mtime = now;
@@ -110,17 +110,17 @@ void Inode::initialize(uint64_t ino, uint64_t pino, uint64_t blkno)
 	this->dinode.di_mode = 0;
         this->dinode.di_nlink = 1;
 }
-Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno)
+Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno)
 {
 	this->initialize(ino, pino, blkno);
 }
-Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, int ftype)
+Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, int ftype)
 {
 	this->initialize(ino, pino, blkno);
 	this->ftype = ftype;
 	this->dinode.di_mode = ftype | 0755;
 }
-Inode::Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs)
+Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs)
 {
 	this->initialize(ino, pino, blkno);
 	fs->readBlock((char*)&this->dinode, this->blkno, 1);
@@ -148,7 +148,7 @@ void Inode::setFile(File *file)
 	file->getExtent(&(this->dinode.di_directExtent[0]));
 	return;
 }
-uint64_t Inode::getDirFtype()
+int Inode::getDirFtype()
 { 
 	return TARFS_FTYPE_DINODE2DIR(this->dinode.di_mode);
 }
@@ -157,8 +157,8 @@ void Inode::insBlock(FsMaker *fs, tarfs_dext *de)
 	SpaceManager *iexmgr = fs->getIexManager();
 	tarfs_indExt indExt;
 	tarfs_indExt new_indExt;
-	uint64_t ind_off = 0;
-	uint64_t new_ind_off;
+	TARBLK ind_off = 0;
+	TARBLK new_ind_off;
 	tarfs_dext *iextp;
 	int n;
 
@@ -239,11 +239,11 @@ void Inode::sync(FsMaker *fs)
 	return;
 
 }
-void Inode::getBlock(FsMaker *fs, uint64_t off, uint64_t *blkno)
+void Inode::getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno)
 {
-	uint64_t inx;
+	TARBLK inx;
 	tarfs_indExt_t indExt;
-	uint64_t ind_off;
+	TARBLK ind_off;
 	tarfs_dext_t *iextp;
 	int n;
 	if (this->dinode.di_nExtents < MAX_DINODE_DIRECT) {

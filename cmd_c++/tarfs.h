@@ -15,7 +15,15 @@
 #include "tarfs_meta.h"
 
 #define MAXPATHLEN	4096
-typedef uint64_t TARBLK;
+typedef uint64_t TARBLK; /* TAR_BLOCKSIZE */
+typedef uint64_t TARINO; /* inode number */
+typedef uint64_t TAROFF; /* byte */
+typedef uint32_t TARMODE;
+typedef uint32_t TARUID;
+typedef uint32_t TARGID;
+typedef uint64_t TARTIME;
+typedef uint64_t TARSIZE;
+typedef uint64_t TARNEXT;
 
 namespace Tarfs {
 	class Util {
@@ -25,7 +33,7 @@ namespace Tarfs {
 		public:
 		static uint64_t strtoint(char *p, size_t siz);
 		static int getFtype(uint32_t typeflag);
-		static uint64_t getCurrentTime();
+		static TARTIME getCurrentTime();
 	};
 	class File {
 		private:
@@ -34,16 +42,16 @@ namespace Tarfs {
 		posix_header header;
 		tarfs_dext addrExtent;
 		public:
-		TARBLK   getBlknoHeader() { return this->blkno_header; }
-		uint64_t getMode();
-		uint64_t getUid();
-		uint64_t getGid();
-		uint64_t getMtime();
-		uint64_t getFileSize();
-		uint64_t getBlocks();
-		uint64_t getNumExtents();
-		void     getExtent(tarfs_dext *extent);
-		int      getFtype();
+		TARBLK  getBlknoHeader() { return this->blkno_header; }
+		TARMODE getMode();
+		TARUID  getUid();
+		TARGID  getGid();
+		TARTIME getMtime();
+		TARSIZE getFileSize();
+		TARBLK  getBlocks();
+		TARNEXT getNumExtents();
+		void    getExtent(tarfs_dext *extent);
+		int     getFtype();
 		File(std::vector<char*> *path, tarfs_dext *addrExtent, 
 					TARBLK blkno_header, posix_header *header);
 		~File();
@@ -55,7 +63,7 @@ namespace Tarfs {
 	class Parser {
 		private:
 		int fd;
-		TARBLK searchBlkno;
+		TARBLK curoff;
 		char fname[MAXPATHLEN];
 		Parser(const char *fname);
 		public:
@@ -70,16 +78,16 @@ namespace Tarfs {
 	class InodeFactory {
 		private:
 		static Inode *freeInode;
-		static uint64_t inodeNum;
+		static TARINO inodeNum;
 		static TARBLK totalDataSize;
 		InodeFactory() {}
 		~InodeFactory() {}
 		public:
 		static bool init(FsMaker *fs);
-		static Inode *allocInode(FsMaker *fs, uint64_t pino, File *file);
-		static Inode *allocInode(FsMaker *fs, uint64_t pino, int ftype);
-		static Inode *getInode(FsMaker *fs, uint64_t ino, uint64_t pino, int ftype);
-		static uint64_t getInodeNum() { return inodeNum; }
+		static Inode *allocInode(FsMaker *fs, TARINO pino, File *file);
+		static Inode *allocInode(FsMaker *fs, TARINO pino, int ftype);
+		static Inode *getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype);
+		static TARINO getInodeNum() { return inodeNum; }
 		static TARBLK getTotalDataSize() { return totalDataSize; }
 		static void fin(Tarfs::FsMaker *fs);
 	};
@@ -87,15 +95,15 @@ namespace Tarfs {
 		int ftype;
 		bool isMod;
 		protected:
-		uint64_t ino;
-		uint64_t pino;
-		uint64_t blkno;
+		TARINO ino;
+		TARINO pino;
+		TARBLK blkno;
 		tarfs_dinode dinode;
-		void initialize(uint64_t ino, uint64_t pino, uint64_t blkno);
+		void initialize(TARINO ino, TARINO pino, TARBLK blkno);
 		public:
-		Inode(uint64_t ino, uint64_t pino, uint64_t blkno);
-		Inode(uint64_t ino, uint64_t pino, uint64_t blkno, int ftype);
-		Inode(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs);
+		Inode(TARINO ino, TARINO pino, TARBLK blkno);
+		Inode(TARINO ino, TARINO pino, TARBLK blkno, int ftype);
+		Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs);
 		~Inode() {}
 		inline void setFtype(int ftype) {
 			this->ftype = ftype;
@@ -107,28 +115,28 @@ namespace Tarfs {
 		inline bool isDirty() { return this->isMod; }
 		inline void setDirty() { this->isMod = true; }
 		inline void setClean() { this->isMod = false; }
-		inline uint64_t getIno() { return this->ino; }
+		inline TARINO getIno() { return this->ino; }
 		void setFile(File *file);
-		uint64_t getDirFtype();
+		int getDirFtype();
 		void insBlock(FsMaker *fs, tarfs_dext *de);
-		void getBlock(FsMaker *fs, uint64_t off, uint64_t *blkno);
+		void getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno);
 		void sync(FsMaker *fs);
 	};
 	class Dir : public Inode {
 		private:
 		struct dirFreeSpace {
-			uint64_t off;
-			uint64_t blkno;
-			char	 dirbuf[TAR_BLOCKSIZE];
+			TAROFF off;
+			TARBLK blkno;
+			char   dirbuf[TAR_BLOCKSIZE];
 		};
 		void searchFreeSpace(FsMaker *fs, char *name, 
 						dirFreeSpace *dfs);
 		void addDirEntry(FsMaker *fs, char *name, 
 					dirFreeSpace *dfs, Inode *inode);
 		public:
-		Dir(uint64_t ino, uint64_t pino, uint64_t blkno) :
+		Dir(TARINO ino, TARINO pino, TARBLK blkno) :
 			Inode(ino, pino, blkno, TARFS_IFDIR) {}
-		Dir(uint64_t ino, uint64_t pino, uint64_t blkno, FsMaker *fs) :
+		Dir(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs) :
 			Inode(ino, pino, blkno, fs) {}
 		void dirInit(FsMaker *fs);
 		Inode *lookup(FsMaker *fs, char *name);
@@ -140,24 +148,24 @@ namespace Tarfs {
 #define	ALLOC_DINODE_NUM	128
 	class SpaceManager {
 		private:
-		uint64_t blkno;
+		TARBLK blkno;
 		int bulks;
 		public:
-		SpaceManager(uint64_t bulks) {
+		SpaceManager(int bulks) {
 			this->blkno = TARBLK_NONE;
 			this->bulks = bulks;
 		}
 		~SpaceManager() {}
-		inline uint64_t getblkno() { return this->blkno; }
+		inline TARBLK getblkno() { return this->blkno; }
 		inline int getbulks() { return this->bulks; }
-		void allocBlock(FsMaker *fs, uint64_t *blkno);
+		void allocBlock(FsMaker *fs, TARBLK *blkno);
 	};
 	class FsMaker {
 		private:
 		char fname[MAXPATHLEN];
 		int fd;
-		uint64_t blks;
-		uint64_t orgblks;
+		TARBLK blks;
+		TARBLK orgblks;
 		tarfs_sblock sb;
 		Dir *root;
 		SpaceManager *dirmgr;
@@ -167,14 +175,14 @@ namespace Tarfs {
 		public:
 		static FsMaker *create(char *fname);
 		~FsMaker();
-		inline uint64_t nblks() { return this->blks; }
+		inline TARBLK nblks() { return this->blks; }
 		int init();
 		void add(File *file);
 		void complete(); /* write super block */
 		void rollback(); /* error case only */
-		void createBlock(uint64_t *blkno, int nblks);
-		void readBlock(char* bufp, uint64_t blkno, ssize_t nblks);
-		void writeBlock(char* bufp, uint64_t blkno, int nblks);
+		void createBlock(TARBLK *blkno, TARBLK nblks);
+		void readBlock(char* bufp, TARBLK blkno, ssize_t nblks);
+		void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 		inline SpaceManager *getDirManager() { return this->dirmgr; }
 		inline SpaceManager *getIexManager() { return this->iexmgr; }
 		inline SpaceManager *getDinodeManager() { return this->dinodemgr; }

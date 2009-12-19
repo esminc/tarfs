@@ -34,7 +34,7 @@ FsMaker *FsMaker::create(char *fname)
 	fsmaker->orgblks = buf_stat.st_size / TAR_BLOCKSIZE;
 
 	ssize_t res;
-        int64_t off = (buf_stat.st_size / TAR_BLOCKSIZE) - 1;
+        TARBLK off = (buf_stat.st_size / TAR_BLOCKSIZE) - 1;
 	res = pread(fsmaker->fd, &fsmaker->sb, TAR_BLOCKSIZE, off*TAR_BLOCKSIZE);
 	if (res != TAR_BLOCKSIZE){
 		::fprintf(stderr, "init_mkfs:pread err=%d\n", err);
@@ -156,12 +156,12 @@ void FsMaker::rollback()
 	::exit(1);
 	return;
 }
-void FsMaker::readBlock(char *bufp, uint64_t blkno, ssize_t nblks)
+void FsMaker::readBlock(char *bufp, TARBLK blkno, ssize_t nblks)
 {
 	int err = 0;
 	ssize_t res;
 	res = ::pread(this->fd, bufp, TAR_BLOCKSIZE*nblks, 
-				blkno*(uint64_t)TAR_BLOCKSIZE);
+				blkno*(TARBLK)TAR_BLOCKSIZE);
 	if (res != (TAR_BLOCKSIZE*nblks)) {
 		err = errno;
 		::fprintf(stderr, "readData:blkno=%lld err = %d\n", blkno, err);
@@ -169,7 +169,7 @@ void FsMaker::readBlock(char *bufp, uint64_t blkno, ssize_t nblks)
 	}
 	return;
 }
-void FsMaker::writeBlock(char *bufp, uint64_t blkno, ssize_t nblks)
+void FsMaker::writeBlock(char *bufp, TARBLK blkno, ssize_t nblks)
 {
 	int err = 0;
 	ssize_t res;
@@ -178,7 +178,7 @@ void FsMaker::writeBlock(char *bufp, uint64_t blkno, ssize_t nblks)
 		this->sb.tarfs_size = (this->blks - this->orgblks);
 	}
 	res = ::pwrite(this->fd, bufp, TAR_BLOCKSIZE*nblks, 
-				blkno*(uint64_t)TAR_BLOCKSIZE);
+				blkno*(TARBLK)TAR_BLOCKSIZE);
 	if (res != (TAR_BLOCKSIZE*nblks)) {
 		err = errno;
 		::fprintf(stderr, "readData:blkno=%lld err = %d\n", blkno, err);
