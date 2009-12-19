@@ -108,31 +108,32 @@ void FsMaker::add(File *file)
 {
 	int i;
 	Dir *dir;
-	Dir *parent = this->root;
+	Dir *nextDir;
 	Inode *inode;
 
-	for (dir = parent, i = 0; i < file->entSize(); i++, parent = dir) {
+	for (dir = this->root, i = 0; i < file->entSize(); i++, dir = nextDir) {
 		char *name = (*file)[i]; /* name in path */
-		inode = parent->lookup(this, name);
+		inode = dir->lookup(this, name);
 		if (i < (file->entSize() - 1)) { /* create directory */
 			if (!inode) {
-				inode = dir = parent->mkdir(this, name);
+				nextDir = dir->mkdir(this, name);
 			} else if (inode->isDir()) { 
-				dir = static_cast<Dir*>(inode);
+				nextDir = static_cast<Dir*>(inode);
 			} else { /* assert check */
 				this->rollback();
 			}
+			nextDir->sync(this);
 		} else { /* create last file */
 			if (!inode) {
-				inode = parent->create(this, file);
+				inode = dir->create(this, file);
 			} else {
 				inode->setFile(file);
 			}
+			inode->sync(this);
 		}
-		inode->sync(this);
 		if (dir != this->root) {
-			parent->sync(this);
-			delete parent;
+			dir->sync(this);
+			delete dir;
 		}
 	}
 	delete inode;
