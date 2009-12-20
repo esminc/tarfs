@@ -105,10 +105,6 @@ namespace Tarfs {
 		Inode(TARINO ino, TARINO pino, TARBLK blkno, int ftype);
 		Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs);
 		~Inode() {}
-		inline void setFtype(int ftype) {
-			this->ftype = ftype;
-			this->dinode.di_mode = (ftype|0755);
-		}
 		inline bool isDir() { return this->ftype == TARFS_IFDIR; }
 		inline bool isReg() { return this->ftype == TARFS_IFREG; }
 		inline bool isSym() { return this->ftype == TARFS_IFLNK; }
@@ -143,10 +139,10 @@ namespace Tarfs {
 		Dir *mkdir(FsMaker *fs, char *name);
 		Inode *create(FsMaker *fs, File *file);
 	};
+	class SpaceManager {
 #define	ALLOC_DIRDATA_NUM	128
 #define	ALLOC_IEXDATA_NUM	128
 #define	ALLOC_DINODE_NUM	128
-	class SpaceManager {
 		private:
 		TARBLK blkno;
 		int bulks;

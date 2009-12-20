@@ -74,7 +74,6 @@ Inode *InodeFactory::allocInode(FsMaker *fs, TARINO pino, int ftype)
 	}
 	if (inode) {
 		inode->setDirty();
-		inode->setFtype(ftype);
 		InodeFactory::inodeNum++;
 	} else {
 		fs->rollback();

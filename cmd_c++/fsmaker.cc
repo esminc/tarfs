@@ -3,7 +3,7 @@ using namespace Tarfs;
 
 FsMaker::FsMaker(char *fname)
 {
-	::memset(this->fname, 0, 4096);
+	::memset(this->fname, 0, MAXPATHLEN);
 	::memcpy(this->fname, fname, strlen(fname));
 	this->fd = -1;
 }

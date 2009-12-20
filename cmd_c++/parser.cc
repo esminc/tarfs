@@ -3,7 +3,7 @@
 using namespace Tarfs;
 Parser::Parser(const char *fname)
 {
-	::memset(this->fname, 0, 4096);
+	::memset(this->fname, 0, MAXPATHLEN);
 	::memcpy(this->fname, fname, strlen(fname));
 	this->fd = -1;
 	this->curoff = 0;
