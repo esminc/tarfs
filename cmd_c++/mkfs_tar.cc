@@ -26,6 +26,7 @@ main(int argc, const char* argv[])
 		delete file;
 	}
 	fsmaker->complete();
+	delete fsmaker;
 	delete parser;
 	return 0;
 }

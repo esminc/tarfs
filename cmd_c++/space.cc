@@ -1,6 +1,7 @@
 #include "tarfs.h"
+using namespace Tarfs;
 
-void Tarfs::SpaceManager::allocBlock(FsMaker *fs, TARBLK *blkno)
+void SpaceManager::allocBlock(FsMaker *fs, TARBLK *blkno)
 {
 	tarfs_freeData *space = (tarfs_freeData*)::malloc(this->bulks*TAR_BLOCKSIZE);
 	if (space == NULL) {

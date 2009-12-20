@@ -14,6 +14,7 @@ FsMaker *FsMaker::create(char *fname)
 
 	FsMaker *fsmaker = new FsMaker(fname);
 	if (!fsmaker) {
+		::fprintf(stderr, "can not new FsMaker Instance.\n");
 		return NULL;
 	}
 	fsmaker->dirmgr = NULL;
@@ -21,12 +22,13 @@ FsMaker *FsMaker::create(char *fname)
 	fsmaker->dinodemgr = NULL;
 	fsmaker->fd = ::open(fsmaker->fname, O_RDWR);
 	if (fsmaker->fd < 0) {
+		::fprintf(stderr, "open(2) %s err=%d\n", fsmaker->fname, errno);
 		delete fsmaker;
 		return NULL;
 	}
 	err = ::fstat(fsmaker->fd, &buf_stat);
 	if (err < 0) {
-		::fprintf(stderr, "init_mkfs:fstat err=%d\n", errno);
+		::fprintf(stderr, "fstat(2) %s err=%d\n", fsmaker->fname, errno);
 		delete fsmaker;
 		return NULL;
 	}
@@ -37,11 +39,12 @@ FsMaker *FsMaker::create(char *fname)
         TARBLK off = (buf_stat.st_size / TAR_BLOCKSIZE) - 1;
 	res = pread(fsmaker->fd, &fsmaker->sb, TAR_BLOCKSIZE, off*TAR_BLOCKSIZE);
 	if (res != TAR_BLOCKSIZE){
-		::fprintf(stderr, "init_mkfs:pread err=%d\n", err);
+		::fprintf(stderr, "pread(2) %s off=%Lu err=%d\n", fsmaker->fname, off, err);
 		delete fsmaker;
 		return NULL;
 	}
 	if (fsmaker->sb.tarfs_magic == TARSBLOCK_MAGIC) {
+		/* already completed mkfs_tar */
 		delete fsmaker;
 		return NULL;
 	}
@@ -63,12 +66,14 @@ FsMaker *FsMaker::create(char *fname)
 	fsmaker->iexmgr = new SpaceManager(ALLOC_IEXDATA_NUM);
 	fsmaker->dinodemgr = new SpaceManager(ALLOC_DINODE_NUM);
 	if (!fsmaker->dirmgr || !fsmaker->iexmgr || !fsmaker->dinodemgr) {
+		::fprintf(stderr, "can not new SpaceManger Instance.\n");
 		delete fsmaker;
 		return NULL;
 	}
 	// free dinode
 	bool ret = InodeFactory::init(fsmaker);
 	if (ret == false) {
+		::fprintf(stderr, "InodeFactory init failed.\n");
 		delete fsmaker;
 		return NULL;
 	}
@@ -76,8 +81,9 @@ FsMaker *FsMaker::create(char *fname)
 	// root dinode
 	Inode *inode = InodeFactory::allocInode(fsmaker, TARFS_ROOT_INO, TARFS_IFDIR);
 	if (inode == NULL) {
+		::fprintf(stderr, "InodeFactory::allocInode failed.\n");
 		delete fsmaker;
-		return false;
+		return NULL;
 	}
 	fsmaker->root = static_cast<Dir*>(inode);
 	return fsmaker;
