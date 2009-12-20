@@ -15,17 +15,20 @@
 #include "tarfs_meta.h"
 
 #define MAXPATHLEN	4096
-typedef uint64_t TARBLK; /* TAR_BLOCKSIZE */
-typedef uint64_t TARINO; /* inode number */
-typedef uint64_t TAROFF; /* byte */
-typedef uint32_t TARMODE;
-typedef uint32_t TARUID;
-typedef uint32_t TARGID;
-typedef uint64_t TARTIME;
-typedef uint64_t TARSIZE;
-typedef uint64_t TARNEXT;
+typedef uint64_t TARBLK;  /* TAR_BLOCKSIZE */
+typedef uint64_t TARINO;  /* inode number */
+typedef uint64_t TAROFF;  /* byte */
+typedef uint32_t TARMODE; /* mode */
+typedef uint32_t TARUID;  /* uid */
+typedef uint32_t TARGID;  /* gid */
+typedef uint64_t TARTIME; /* time(usec) */
+typedef uint64_t TARSIZE; /* file size */
+typedef uint64_t TARNEXT; /* num extents */
 
 namespace Tarfs {
+	/**
+	 * Util　クラス
+	 */
 	class Util {
 		private:
 		Util() {}
@@ -35,6 +38,10 @@ namespace Tarfs {
 		static int getFtype(uint32_t typeflag);
 		static TARTIME getCurrentTime();
 	};
+	/**
+	 * tar アーカイブファイルをパースした結果を
+	 * ファイル単位で管理するクラス
+	 */
 	class File {
 		private:
 		std::vector<char*> *path;
@@ -60,6 +67,9 @@ namespace Tarfs {
 		inline char* operator [] (int i) { return path->at(i); }
 		inline int entSize() { return this->path->size(); }
 	};
+	/**
+	 * tar アーカイブファイルをパースするクラス
+	 */
 	class Parser {
 		private:
 		int fd;
@@ -73,24 +83,10 @@ namespace Tarfs {
 		File *get();
 	};
 	class FsMaker;
-	class Inode;
-	class Dir;
-	class InodeFactory {
-		private:
-		static Inode *freeInode;
-		static TARINO inodeNum;
-		static TARBLK totalDataSize;
-		InodeFactory() {}
-		~InodeFactory() {}
-		public:
-		static bool init(FsMaker *fs);
-		static Inode *allocInode(FsMaker *fs, TARINO pino, File *file);
-		static Inode *allocInode(FsMaker *fs, TARINO pino, int ftype);
-		static Inode *getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype);
-		static TARINO getInodeNum() { return inodeNum; }
-		static TARBLK getTotalDataSize() { return totalDataSize; }
-		static void fin(Tarfs::FsMaker *fs);
-	};
+	/**
+	 * tar ファイルシステムのファイルを inode として
+	 * 管理するクラス
+	 */
 	class Inode {
 		int ftype;
 		bool isMod;
@@ -118,6 +114,10 @@ namespace Tarfs {
 		void getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno);
 		void sync(FsMaker *fs);
 	};
+	/**
+	 * tar ファイルシステムのディレクトリを inode として
+	 * 管理するクラス。
+	 */
 	class Dir : public Inode {
 		private:
 		struct dirFreeSpace {
@@ -139,6 +139,29 @@ namespace Tarfs {
 		Dir *mkdir(FsMaker *fs, char *name);
 		Inode *create(FsMaker *fs, File *file);
 	};
+	class FsMaker;
+	/**
+	 * inode を管理するクラス
+	 */
+	class InodeFactory {
+		private:
+		static Inode *freeInode;
+		static TARINO inodeNum;
+		static TARBLK totalDataSize;
+		InodeFactory() {}
+		~InodeFactory() {}
+		public:
+		static bool init(FsMaker *fs);
+		static Inode *allocInode(FsMaker *fs, TARINO pino, File *file);
+		static Inode *allocInode(FsMaker *fs, TARINO pino, int ftype);
+		static Inode *getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype);
+		static TARINO getInodeNum() { return inodeNum; }
+		static TARBLK getTotalDataSize() { return totalDataSize; }
+		static void fin(Tarfs::FsMaker *fs);
+	};
+	/**
+	 * ディスクスペースを管理するクラス
+	 */
 	class SpaceManager {
 #define	ALLOC_DIRDATA_NUM	128
 #define	ALLOC_IEXDATA_NUM	128
@@ -156,6 +179,10 @@ namespace Tarfs {
 		inline int getbulks() { return this->bulks; }
 		void allocBlock(FsMaker *fs, TARBLK *blkno);
 	};
+	/**
+	 * tar アーカイブファイルをパースした結果（File）を元に、
+	 * tar ファイルシステムのメタデータを構築するするクラス
+	 */
 	class FsMaker {
 		private:
 		char fname[MAXPATHLEN];
