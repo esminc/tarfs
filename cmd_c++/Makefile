@@ -1,5 +1,5 @@
 
-OBJS=parser.o fsmaker.o space.o inode.o dir.o
+OBJS=parser.o file.o util.o fsmaker.o space.o inode.o inode_factory.o dir.o 
 SRCS=${OBJS:.o=.cc}
 CFLAGS=-g -Wall
 
