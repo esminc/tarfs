@@ -120,6 +120,7 @@ namespace Tarfs {
 		void insBlock(FsMaker *fs, tarfs_dext *de);
 		void getBlock(FsIO *fsio, TARBLK off, TARBLK *blkno);
 		void sync(FsIO *fsio);
+		void print();
 	};
 	/**
 	 * tar ファイルシステムのディレクトリを inode として
@@ -145,6 +146,7 @@ namespace Tarfs {
 		Inode *lookup(FsIO *fsio, char *name);
 		Dir *mkdir(FsMaker *fs, char *name);
 		Inode *create(FsMaker *fs, File *file);
+		void printDirEntry(FsIO *fsio);
 	};
 	class FsMaker;
 	/**
@@ -164,6 +166,7 @@ namespace Tarfs {
 		static Inode *allocInode(FsMaker *fs, TARINO pino, File *file);
 		static Inode *allocInode(FsMaker *fs, TARINO pino, int ftype);
 		static Inode *getInode(FsIO *fsio, TARINO ino, TARINO pino, int ftype);
+		static Inode *getInode(FsIO *fsio, TARINO ino, TARINO pino);
 		static TARINO getInodeNum() { return inodeNum; }
 		static TARBLK getTotalDataSize() { return totalDataSize; }
 		static void fin(FsIO *fsio);
@@ -226,6 +229,24 @@ namespace Tarfs {
 				exit(1);
 			}
 		}
+		void printSblock()
+		{
+			tarfs_sblock *sbp = &this->sb;
+			printf("#tarfs_magic:0x%llx\n", sbp->tarfs_magic);
+			printf("#tarfs_inode:%llu\n", sbp->tarfs_inodes);
+			printf("#tarfs_size:%llu\n", sbp->tarfs_size);
+			printf("#tarfs_fsize:%llu\n", sbp->tarfs_fsize);
+			printf("#tarfs_dsize:%llu\n", sbp->tarfs_dsize);
+			printf("#tarfs_flist_regdata:%llu\n", sbp->tarfs_flist_regdata);
+			printf("#tarfs_flist_dirdata:%llu\n", sbp->tarfs_flist_dirdata);
+			printf("#tarfs_flist_iexdata:%llu\n", sbp->tarfs_flist_iexdata);
+			printf("#tarfs_flist_indDinode:%llu\n", sbp->tarfs_flist_indDinode);
+			printf("#tarfs_flist_dinode:%llu\n", sbp->tarfs_flist_dinode);
+			printf("#tarfs_root:%llu\n", sbp->tarfs_root);
+			printf("#tarfs_free:%llu\n", sbp->tarfs_free);
+			printf("#tarfs_flags:0x%llx\n", sbp->tarfs_flags);
+			printf("#tarfs_maxino:%llu\n", sbp->tarfs_maxino);
+		}
 	};
 	/**
 	 * tar アーカイブファイルをパースした結果（File）を元に、
@@ -233,8 +254,6 @@ namespace Tarfs {
 	 */
 	class FsMaker : public FsIO {
 		private:
-		char fname[MAXPATHLEN];
-		int fd;
 		TARBLK orgblks;
 		SpaceManager *dirmgr;
 		SpaceManager *iexmgr;

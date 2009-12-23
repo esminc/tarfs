@@ -12,6 +12,7 @@ INC=-I../include -I.
 all: $(OBJS)
 	g++ $(INC) $(CFLAGS) -o mkfs.tarfs mkfs_tarfs.cc $(OBJS)
 	g++ $(INC) $(CFLAGS) -o tarfsmount tarfsmount.cc $(OBJS)
+	g++ $(INC) $(CFLAGS) -o tarfscheck tarfscheck.cc $(OBJS)
 
 clean:
 	rm -f $(OBJS) mkfs.tarfs tarfsmount

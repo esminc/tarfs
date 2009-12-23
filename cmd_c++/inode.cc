@@ -202,4 +202,38 @@ done:
 	*blkno = iextp->de_blkno + inx;
 	return;
 }
+void Inode::print()
+{
+	int i;
+	int n;
+	printf("#ino:%llu\n", this->ino);
+	printf("#di_magic:0x%llx\n", this->dinode.di_magic);
+	printf("#di_mode:0x%x\n", this->dinode.di_mode);
+	printf("#di_uid:%u\n", this->dinode.di_uid);
+	printf("#di_gid:%u\n", this->dinode.di_gid);
+	printf("#di_nlink:%u\n", this->dinode.di_nlink);
+	printf("#di_blocks:%llu\n", this->dinode.di_blocks);
+	printf("#di_size:%llu\n", this->dinode.di_size);
+	printf("#di_atime:%llu\n", this->dinode.di_atime);
+	printf("#di_mtime:%llu\n", this->dinode.di_mtime);
+	printf("#di_ctime:%llu\n", this->dinode.di_ctime);
+	printf("#di_header:%llu\n", this->dinode.di_header);
+	printf("#di_nExtents:%llu\n", this->dinode.di_nExtents);
+	printf("#di_rootIndExt:%llu\n", this->dinode.di_rootIndExt);
+	printf("#di_flags:0x%x\n", this->dinode.di_flags);
+	if (this->dinode.di_nExtents < MAX_DINODE_DIRECT) {
+		n = this->dinode.di_nExtents;
+	} else {
+		n = MAX_DINODE_DIRECT;
+	}
+	for (i = 0; i < n; i++) {
+		printf("#di_directExtent[%d].de_off:%llu\n", 
+				i, this->dinode.di_directExtent[i].de_off);
+		printf("#di_directExtent[%d].de_blkno:%llu\n", 
+				i, this->dinode.di_directExtent[i].de_blkno);
+		printf("#di_directExtent[%d].de_nblks:%llu\n", 
+				i, this->dinode.di_directExtent[i].de_nblks);
+	}
+	return;
+}
 

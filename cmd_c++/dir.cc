@@ -174,3 +174,28 @@ Inode* Dir::create(FsMaker *fs, File *file)
 	this->addDirEntry(fs, name, &dfs, inode);
 	return inode;
 }
+void Dir::printDirEntry(FsIO *fsio)
+{
+	int i;
+	TARBLK dirblkno = 0;
+	TAROFF off = 0;
+	TAROFF endoff = this->dinode.di_size;
+	char dirbuf[TAR_BLOCKSIZE];
+	tarfs_direct *direct;
+
+	while (off < endoff) {
+		if ((off & (TAR_BLOCKSIZE -1)) == 0) { // 512 align
+			this->getBlock(fsio, off/TAR_BLOCKSIZE, &dirblkno);
+			fsio->readBlock(dirbuf, dirblkno, 1);
+			direct = (tarfs_direct_t*)dirbuf;
+		}
+		printf("d_ino=%4llu d_reclen=%3d d_namelen=%2d d_ftype=%d name=",
+			direct->d_ino, direct->d_reclen, direct->d_namelen, direct->d_ftype);
+		for (i = 0; i < direct->d_namelen; i++){
+			printf("%c", direct->d_name[i]);
+		}
+		printf("\n");
+		off += direct->d_reclen;
+		direct = (tarfs_direct_t*)(((char*)direct) + direct->d_reclen);
+	}
+}

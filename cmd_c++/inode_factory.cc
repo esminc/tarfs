@@ -6,6 +6,18 @@ TARINO InodeFactory::inodeNum;
 TARBLK InodeFactory::totalDataSize;
 Inode* InodeFactory::freeInode;
 
+Inode *InodeFactory::getInode(FsIO *fsio, TARINO ino, TARINO pino)
+{
+	Inode *inode;
+	TARBLK blkno;
+	InodeFactory::freeInode->getBlock(fsio, ino, &blkno);
+	inode = new Inode(ino, pino, blkno, fsio);
+	if (inode && inode->isDir()) {
+		delete inode;
+		inode = new Dir(ino, pino, blkno, fsio);
+	}
+	return inode;
+}
 Inode *InodeFactory::getInode(FsIO *fsio, TARINO ino, TARINO pino, int ftype)
 {
 	Inode *inode;
