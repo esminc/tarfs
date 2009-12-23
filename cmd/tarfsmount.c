@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <sys/mount.h>
 #include <stdlib.h>
+#include <mntent.h>
 #include "tarfs_meta.h"
 #include "tarfs_common.h"
 
@@ -101,8 +102,10 @@ main(int argc, const char* argv[])
 	char *fname;
 	char *mntpoint;
 	mkfs_mgr_t mgr;
-	//incore_dinode_t inode;
+	struct mntent tabent;
 	struct tarfs_mnt_arg arg;
+	FILE *fp;
+	char mntopts[10240];
 
 	fname = (char*)argv[1];
 	mntpoint = (char*)argv[2];
@@ -121,7 +124,20 @@ main(int argc, const char* argv[])
 	arg.mnt_sb = mgr.m_sb;
 	arg.mnt_dinode = mgr.m_free.i_dinode;
 
-	mount(fname, mntpoint, "tarfs", mntflg, &arg);
+	err = mount(fname, mntpoint, "tarfs", mntflg, &arg);
+	ASSERT(err == 0);
+	sprintf(mntopts, "%s,loop=%s", MNTOPT_RO, fname);
+	tabent.mnt_fsname = fname;
+	tabent.mnt_dir = mntpoint;
+	tabent.mnt_type = "tarfs";
+	tabent.mnt_opts = mntopts;
+	tabent.mnt_freq = 0;
+	tabent.mnt_passno = 0;
+	fp = setmntent(MOUNTED, "a+");
+	ASSERT(fp != NULL);
+	err = addmntent(fp, &tabent);
+	ASSERT(err == 0);
+	endmntent(fp);
 	return 0;
 }
 

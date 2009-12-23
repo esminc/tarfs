@@ -8,6 +8,12 @@ fi
 TAR=$1
 MNT=$2
 
+lsmod | grep tarfs > /dev/null
+if [ $? -ne 0 ]
+then
+	echo "ERROR: tarfs kernel module is not installed."
+	exit 1
+fi
 if [ -f ${TAR} ]
 then
 	:
@@ -39,6 +45,9 @@ checkFile()
 	then
 		MNT_TAR=${FILE}.dummy
 		gunzip -c ${FILE} > ${MNT_TAR}
+	else
+		MNT_TAR=${FILE}.dummy
+		cp ${FILE} ${MNT_TAR}
 	fi
 }
 
@@ -50,10 +59,4 @@ then
 	exit 1
 fi
 tarfsmount ${DEV} ${MNT}
-echo "${DEV} ${MNT} tarfs ro 0 0" >> /etc/mtab
-if [ "${TAR}" = "${MNT_TAR}" ]
-then
-	:
-else
-	rm -f ${MNT_TAR}
-fi
+rm -f ${MNT_TAR}
