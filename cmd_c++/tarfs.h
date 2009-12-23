@@ -203,7 +203,6 @@ namespace Tarfs {
 		void add(File *file);
 		void complete(); /* write super block */
 		void rollback(); /* error case only */
-		void createBlock(TARBLK *blkno, TARBLK nblks);
 		void readBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 		void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 		inline SpaceManager *getDirManager() { return this->dirmgr; }
