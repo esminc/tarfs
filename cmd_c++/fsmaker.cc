@@ -1,12 +1,6 @@
 #include "tarfs.h"
 using namespace Tarfs;
 
-FsMaker::FsMaker(char *fname)
-{
-	::memset(this->fname, 0, MAXPATHLEN);
-	::memcpy(this->fname, fname, strlen(fname));
-	this->fd = -1;
-}
 FsMaker *FsMaker::create(char *fname)
 {
 	int err;

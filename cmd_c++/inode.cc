@@ -29,10 +29,10 @@ Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, int ftype)
 	this->ftype = ftype;
 	this->dinode.di_mode = ftype | 0755;
 }
-Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs)
+Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, FsIO *fsio)
 {
 	this->initialize(ino, pino, blkno);
-	fs->readBlock((char*)&this->dinode, this->blkno, 1);
+	fsio->readBlock((char*)&this->dinode, this->blkno, 1);
 	if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFREG) {
 		this->ftype = TARFS_IFREG;
 	} else if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFDIR) {
@@ -40,6 +40,16 @@ Inode::Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs)
 	} else if ((this->dinode.di_mode & TARFS_IFMT) == TARFS_IFLNK) {
 		this->ftype = TARFS_IFLNK;
 	}
+}
+tarfs_dinode *Inode::getDinodeImage()
+{
+	tarfs_dinode *freeDinodep;
+	freeDinodep = (tarfs_dinode*)::malloc(sizeof(tarfs_dinode));
+	if (!freeDinodep) {
+		return NULL;
+	}
+	::memcpy(freeDinodep, &this->dinode, sizeof(tarfs_dinode));
+	return freeDinodep;
 }
 void Inode::setFile(File *file)
 {
@@ -139,16 +149,16 @@ done:
 	}
 	return;
 }
-void Inode::sync(FsMaker *fs)
+void Inode::sync(FsIO *fsio)
 {
 	if (!this->isDirty()) {
 		return;
 	}
-	fs->writeBlock((char*)&this->dinode, this->blkno, 1);
+	fsio->writeBlock((char*)&this->dinode, this->blkno, 1);
 	return;
 
 }
-void Inode::getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno)
+void Inode::getBlock(FsIO *fsio, TARBLK off, TARBLK *blkno)
 {
 	TARBLK inx;
 	tarfs_indExt_t indExt;
@@ -174,7 +184,7 @@ void Inode::getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno)
 	// search indirect extents
 	ind_off = this->dinode.di_rootIndExt;
 	while (1) {
-		fs->readBlock((char*)&indExt, ind_off, 1);
+		fsio->readBlock((char*)&indExt, ind_off, 1);
 		for (uint32_t i = 0; i < indExt.ie_num; i++) {
 			iextp = &indExt.ie_dext[i];
 			if (iextp->de_off <= off &&

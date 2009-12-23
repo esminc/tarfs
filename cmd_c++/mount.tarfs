@@ -1,0 +1,62 @@
+#!/bin/sh
+
+if [ $# -ne 4 ]
+then
+	echo "Usage:$0 tar-file mntpath"
+	exit 1
+fi
+TAR=$1
+MNT=$2
+
+lsmod | grep tarfs > /dev/null
+if [ $? -ne 0 ]
+then
+	echo "ERROR: tarfs kernel module is not installed."
+	exit 1
+fi
+if [ -f ${TAR} ]
+then
+	:
+else
+	echo "No such tarfile.."
+	exit 1
+fi
+if [ -d ${MNT} ]
+then
+	:
+else
+	echo "No such mntpath.."
+	exit 1
+fi
+
+DEV=`losetup -f`
+if [ -z $DEV ]
+then
+	echo "ERROR: no loopback devices.."
+	exit 1
+fi
+
+checkFile()
+{
+	FILE=${1}
+	MNT_TAR=${FILE}
+	file ${FILE}  | grep gzip > /dev/null
+	if [ $? -eq 0 ]
+	then
+		MNT_TAR=${FILE}.dummy
+		gunzip -c ${FILE} > ${MNT_TAR}
+	else
+		MNT_TAR=${FILE}.dummy
+		cp ${FILE} ${MNT_TAR}
+	fi
+}
+
+checkFile $TAR
+mkfs.tarfs ${MNT_TAR}
+losetup ${DEV} ${MNT_TAR}
+if [ $? -ne 0 ]
+then
+	exit 1
+fi
+tarfsmount ${DEV} ${MNT}
+rm -f ${MNT_TAR}
