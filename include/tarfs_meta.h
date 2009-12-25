@@ -31,25 +31,25 @@
 #define TARFS_MODEMASK 00777
 
 struct posix_header
-{
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char chksum[8];
-  char typeflag;
-  char linkname[100];
-  char magic[6];
-  char version[2];
-  char uname[32];
-  char gname[32];
-  char devmajor[8];
-  char devminor[8];
-  char prefix[155];
-  char padding[12];
-};
+{				/* dec:oct : */
+	char name[100];		/*   0:00000: file name */
+	char mode[8];		/* 100:00144: file mode */
+	char uid[8];		/* 108:00154: uid */
+	char gid[8];		/* 116:00164: gid */
+	char size[12];		/* 124:00174: file size */
+	char mtime[12];		/* 136:00210: mtime */
+	char chksum[8];		/* 148:00224: chksum */
+	char typeflag;		/* 156:00234: typeflag */
+  	char linkname[100];	/* 157:00235: linkname */
+	char magic[6];		/* 257:00401: magic */
+	char version[2];	/* 263:00407: version */
+	char uname[32];		/* 265:00409 user name */
+	char gname[32];		/* 297:00451: group name */
+	char devmajor[8];	/* 329:00511: dev major */
+	char devminor[8];	/* 337:00521: dev minor */
+	char prefix[155];	/* 345:00531: prefix */
+	char padding[12];	/* 500:00764: padding */
+};				/* 512:01000: */
 
 #define	TARSBLOCK_MAGIC	((uint64_t)0xbeafcafe)
 #define	TARDINODE_MAGIC	((uint64_t)0xdacbdacb)

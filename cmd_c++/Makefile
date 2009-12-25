@@ -14,5 +14,10 @@ all: $(OBJS)
 	g++ $(INC) $(CFLAGS) -o tarfsmount tarfsmount.cc $(OBJS)
 	g++ $(INC) $(CFLAGS) -o tarfscheck tarfscheck.cc $(OBJS)
 
+install:
+	cp mkfs.tarfs /sbin/
+	cp tarfsmount /sbin/
+	cp mount.tarfs /sbin/
+
 clean:
-	rm -f $(OBJS) mkfs.tarfs tarfsmount
+	rm -f $(OBJS) mkfs.tarfs tarfsmount tarfscheck
