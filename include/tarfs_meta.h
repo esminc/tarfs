@@ -6,30 +6,13 @@
 #define TAR_BLOCKSIZE	512
 #define TAR_BLOCKBITS	9
 
-#define TARFS_REGTYPE  '0'
-#define TARFS_AREGTYPE '\0'
-#define TARFS_LNKTYPE  '1'
-#define TARFS_SYMTYPE  '2'
-#define TARFS_CHRTYPE  '3'
-#define TARFS_BLKTYPE  '4'
-#define TARFS_DIRTYPE  '5'
-#define TARFS_FIFOTYPE '6'
-#define TARFS_CONTTYPE '7'
-
-#define TARFS_GNU_DUMPDIR  'D'
-#define TARFS_GNU_LONGLINK 'K'
-#define TARFS_GNU_LONGNAME 'L'
-#define TARFS_GNU_MULTIVOL 'M'
-#define TARFS_GNU_NAMES    'N'
-#define TARFS_GNU_SPARSE   'S'
-#define TARFS_GNU_VOLHDR   'V'
-
-/* Mode field */
-#define TARFS_SUID     04000
-#define TARFS_SGID     02000
-#define TARFS_SVTX     01000
-#define TARFS_MODEMASK 00777
-
+/**
+ * typeflag
+ */
+#define TARFS_REGTYPE  '0'	/* regular file */
+#define TARFS_SYMTYPE  '2'	/* symlink file */
+#define TARFS_DIRTYPE  '5'	/* directory file */
+#define TARFS_GNU_LONGNAME 'L'	/* file name len > 100 */
 struct posix_header
 {				/* dec:oct : */
 	char name[100];		/*   0:00000: file name */
@@ -47,9 +30,30 @@ struct posix_header
 	char gname[32];		/* 297:00451: group name */
 	char devmajor[8];	/* 329:00511: dev major */
 	char devminor[8];	/* 337:00521: dev minor */
-	char prefix[155];	/* 345:00531: prefix */
-	char padding[12];	/* 500:00764: padding */
+	char padding[167];	/* 345:00531: padding */
 };				/* 512:01000: */
+
+/**
+ * not support typeflag
+ */
+#define TARFS_AREGTYPE '\0'
+#define TARFS_LNKTYPE  '1'
+#define TARFS_CHRTYPE  '3'
+#define TARFS_BLKTYPE  '4'
+#define TARFS_FIFOTYPE '6'
+#define TARFS_CONTTYPE '7'
+#define TARFS_GNU_DUMPDIR  'D'
+#define TARFS_GNU_LONGLINK 'K'	/* symlink name len > 100 */
+#define TARFS_GNU_MULTIVOL 'M'
+#define TARFS_GNU_NAMES    'N'
+#define TARFS_GNU_SPARSE   'S'
+#define TARFS_GNU_VOLHDR   'V'
+
+/* Mode field */
+#define TARFS_SUID     04000
+#define TARFS_SGID     02000
+#define TARFS_SVTX     01000
+#define TARFS_MODEMASK 00777
 
 #define	TARSBLOCK_MAGIC	((uint64_t)0xbeafcafe)
 #define	TARDINODE_MAGIC	((uint64_t)0xdacbdacb)
