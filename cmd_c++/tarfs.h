@@ -1,5 +1,9 @@
 #ifndef _TARFS_H_
 #define _TARFS_H_
+#define _XOPEN_SOURCE 500
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>

@@ -23,7 +23,7 @@ FsReader *FsReader::create(char *fname, TarfileType type)
 		::fprintf(stderr, "can not new FsReader Instance.\n");
 		return NULL;
 	}
-	fsreader->fd = ::open(fsreader->fname, O_RDONLY);
+	fsreader->fd = ::open(fsreader->fname, O_RDONLY|O_LARGEFILE);
 	if (fsreader->fd < 0) {
 		::fprintf(stderr, "open(2) %s err=%d\n", fsreader->fname, errno);
 		delete fsreader;

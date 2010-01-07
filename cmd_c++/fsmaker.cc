@@ -14,7 +14,7 @@ FsMaker *FsMaker::create(char *fname)
 	fsmaker->dirmgr = NULL;
 	fsmaker->iexmgr = NULL;
 	fsmaker->dinodemgr = NULL;
-	fsmaker->fd = ::open(fsmaker->fname, O_RDWR);
+	fsmaker->fd = ::open(fsmaker->fname, O_RDWR|O_LARGEFILE);
 	if (fsmaker->fd < 0) {
 		::fprintf(stderr, "open(2) %s err=%d\n", fsmaker->fname, errno);
 		delete fsmaker;

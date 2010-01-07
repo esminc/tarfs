@@ -46,8 +46,9 @@ checkFile()
 		MNT_TAR=${FILE}.dummy
 		gunzip -c ${FILE} > ${MNT_TAR}
 	else
-		MNT_TAR=${FILE}.dummy
-		cp ${FILE} ${MNT_TAR}
+		#MNT_TAR=${FILE}.dummy
+		#cp ${FILE} ${MNT_TAR}
+		MNT_TAR=${FILE}
 	fi
 }
 
@@ -59,4 +60,4 @@ then
 	exit 1
 fi
 tarfsmount ${DEV} ${MNT}
-rm -f ${MNT_TAR}
+#rm -f ${MNT_TAR}
