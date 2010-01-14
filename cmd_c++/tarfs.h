@@ -36,11 +36,17 @@ typedef uint64_t TARNEXT; /* num extents */
 
 namespace Tarfs {
 	/**
-	 * Util　クラス
+	 * Utilitiy class for tarfs
 	 */
 	class Util {
 		private:
+		/** This class can not be instance.
+		 * so constructor is private.
+		 */
 		Util() {}
+		/** This class can not be instance.
+		 * so destructor is private.
+		 */
 		~Util() {}
 		public:
 		static uint64_t strtoint(char *p, size_t siz);

@@ -2,6 +2,12 @@
 
 using namespace Tarfs;
 
+/** convert string to int
+ *
+ * @param p string
+ * @param siz string size including '\0'
+ * @return converted value
+ */
 uint64_t Util::strtoint(char *p, size_t siz)
 {
 	char buf[TAR_BLOCKSIZE];
@@ -16,6 +22,12 @@ uint64_t Util::strtoint(char *p, size_t siz)
 	val=strtoull(buf, NULL, 8);
 	return val;
 }
+
+/** convert tarfile's typeflag to tarfs's typeflag
+ * 
+ * @param typeflag tarfile's typeflag
+ * @return tarfs's typeflag
+ */
 int Util::getFtype(uint32_t typeflag)
 {
 	uint32_t ftype = -1;
@@ -35,6 +47,10 @@ int Util::getFtype(uint32_t typeflag)
 	return ftype;
 }
 
+/** get current time(usec) using gettimeofday()
+ *
+ * @return current time(usec)
+ */
 TARTIME Util::getCurrentTime()
 {
 	TARTIME now;
