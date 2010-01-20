@@ -1,6 +1,5 @@
 #include "tarfs.h"
 
-//gitのテスト
 using namespace Tarfs;
 int
 main(int argc, const char* argv[])
