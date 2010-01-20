@@ -1,8 +1,15 @@
 #ifndef _TARFS_H_
 #define _TARFS_H_
+#define _XOPEN_SOURCE 500
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
+#include <sys/mount.h>
+#include <mntent.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,6 +20,8 @@
 #include <ctype.h>
 #include <vector>
 #include "tarfs_meta.h"
+
+#define FSTYPE_TARFS	"tarfs"
 
 #define MAXPATHLEN	4096
 typedef uint64_t TARBLK;  /* TAR_BLOCKSIZE */
@@ -27,11 +36,17 @@ typedef uint64_t TARNEXT; /* num extents */
 
 namespace Tarfs {
 	/**
-	 * Util　クラス
+	 * Utilitiy class for tarfs
 	 */
 	class Util {
 		private:
+		/** This class can not be instance.
+		 * so constructor is private.
+		 */
 		Util() {}
+		/** This class can not be instance.
+		 * so destructor is private.
+		 */
 		~Util() {}
 		public:
 		static uint64_t strtoint(char *p, size_t siz);
@@ -82,6 +97,7 @@ namespace Tarfs {
 		~Parser();
 		File *get();
 	};
+	class FsIO;
 	class FsMaker;
 	/**
 	 * tar ファイルシステムのファイルを inode として
@@ -99,8 +115,9 @@ namespace Tarfs {
 		public:
 		Inode(TARINO ino, TARINO pino, TARBLK blkno);
 		Inode(TARINO ino, TARINO pino, TARBLK blkno, int ftype);
-		Inode(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs);
+		Inode(TARINO ino, TARINO pino, TARBLK blkno, FsIO *fsio);
 		~Inode() {}
+		tarfs_dinode *getDinodeImage();
 		inline bool isDir() { return this->ftype == TARFS_IFDIR; }
 		inline bool isReg() { return this->ftype == TARFS_IFREG; }
 		inline bool isSym() { return this->ftype == TARFS_IFLNK; }
@@ -111,8 +128,9 @@ namespace Tarfs {
 		void setFile(File *file);
 		int getDirFtype();
 		void insBlock(FsMaker *fs, tarfs_dext *de);
-		void getBlock(FsMaker *fs, TARBLK off, TARBLK *blkno);
-		void sync(FsMaker *fs);
+		void getBlock(FsIO *fsio, TARBLK off, TARBLK *blkno);
+		void sync(FsIO *fsio);
+		void print();
 	};
 	/**
 	 * tar ファイルシステムのディレクトリを inode として
@@ -132,12 +150,13 @@ namespace Tarfs {
 		public:
 		Dir(TARINO ino, TARINO pino, TARBLK blkno) :
 			Inode(ino, pino, blkno, TARFS_IFDIR) {}
-		Dir(TARINO ino, TARINO pino, TARBLK blkno, FsMaker *fs) :
-			Inode(ino, pino, blkno, fs) {}
+		Dir(TARINO ino, TARINO pino, TARBLK blkno, FsIO *fsio) :
+			Inode(ino, pino, blkno, fsio) {}
 		void dirInit(FsMaker *fs);
-		Inode *lookup(FsMaker *fs, char *name);
+		Inode *lookup(FsIO *fsio, char *name);
 		Dir *mkdir(FsMaker *fs, char *name);
 		Inode *create(FsMaker *fs, File *file);
+		void printDirEntry(FsIO *fsio);
 	};
 	class FsMaker;
 	/**
@@ -152,12 +171,15 @@ namespace Tarfs {
 		~InodeFactory() {}
 		public:
 		static bool init(FsMaker *fs);
+		static bool load(FsIO *fsio, TARBLK freeInodeBlkno);
+		static Inode *getFreeInode() { return InodeFactory::freeInode; }
 		static Inode *allocInode(FsMaker *fs, TARINO pino, File *file);
 		static Inode *allocInode(FsMaker *fs, TARINO pino, int ftype);
-		static Inode *getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype);
+		static Inode *getInode(FsIO *fsio, TARINO ino, TARINO pino, int ftype);
+		static Inode *getInode(FsIO *fsio, TARINO ino, TARINO pino);
 		static TARINO getInodeNum() { return inodeNum; }
 		static TARBLK getTotalDataSize() { return totalDataSize; }
-		static void fin(Tarfs::FsMaker *fs);
+		static void fin(FsIO *fsio);
 	};
 	/**
 	 * ディスクスペースを管理するクラス
@@ -179,22 +201,74 @@ namespace Tarfs {
 		inline int getbulks() { return this->bulks; }
 		void allocBlock(FsMaker *fs, TARBLK *blkno);
 	};
+	class FsIO {
+		protected:
+		char fname[MAXPATHLEN];
+		int fd;
+		TARBLK blks;
+		tarfs_sblock sb;
+		Dir *root;
+		FsIO(char *fname)
+		{
+			this->root = NULL;
+			::memset(this->fname, 0, MAXPATHLEN);
+			::memcpy(this->fname, fname, strlen(fname));
+			this->fd = -1;
+		}
+		public:
+		tarfs_sblock *getSblock()
+		{
+			tarfs_sblock *sbp;
+			sbp = (tarfs_sblock*)::malloc(sizeof(tarfs_sblock));
+			if (!sbp) {
+				return NULL;
+			}
+			::memcpy(sbp, &this->sb, sizeof(tarfs_sblock));
+			return sbp;
+		}
+		virtual void rollback() {}
+		virtual void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks) {}
+		virtual void readBlock(char* bufp, TARBLK blkno, ssize_t nblks) 
+		{
+			ssize_t res;
+			res = ::pread(this->fd, bufp, TAR_BLOCKSIZE*nblks, 
+					blkno*(TARBLK)TAR_BLOCKSIZE);
+			if (res != (TAR_BLOCKSIZE*nblks)) {
+				::fprintf(stderr, "pread(2) %s off=%Lu err=%d\n", 
+					this->fname, this->blks, errno);
+				exit(1);
+			}
+		}
+		void printSblock()
+		{
+			tarfs_sblock *sbp = &this->sb;
+			printf("#tarfs_magic:0x%llx\n", sbp->tarfs_magic);
+			printf("#tarfs_inode:%llu\n", sbp->tarfs_inodes);
+			printf("#tarfs_size:%llu\n", sbp->tarfs_size);
+			printf("#tarfs_fsize:%llu\n", sbp->tarfs_fsize);
+			printf("#tarfs_dsize:%llu\n", sbp->tarfs_dsize);
+			printf("#tarfs_flist_regdata:%llu\n", sbp->tarfs_flist_regdata);
+			printf("#tarfs_flist_dirdata:%llu\n", sbp->tarfs_flist_dirdata);
+			printf("#tarfs_flist_iexdata:%llu\n", sbp->tarfs_flist_iexdata);
+			printf("#tarfs_flist_indDinode:%llu\n", sbp->tarfs_flist_indDinode);
+			printf("#tarfs_flist_dinode:%llu\n", sbp->tarfs_flist_dinode);
+			printf("#tarfs_root:%llu\n", sbp->tarfs_root);
+			printf("#tarfs_free:%llu\n", sbp->tarfs_free);
+			printf("#tarfs_flags:0x%llx\n", sbp->tarfs_flags);
+			printf("#tarfs_maxino:%llu\n", sbp->tarfs_maxino);
+		}
+	};
 	/**
 	 * tar アーカイブファイルをパースした結果（File）を元に、
 	 * tar ファイルシステムのメタデータを構築するするクラス
 	 */
-	class FsMaker {
+	class FsMaker : public FsIO {
 		private:
-		char fname[MAXPATHLEN];
-		int fd;
-		TARBLK blks;
 		TARBLK orgblks;
-		tarfs_sblock sb;
-		Dir *root;
 		SpaceManager *dirmgr;
 		SpaceManager *iexmgr;
 		SpaceManager *dinodemgr;
-		FsMaker(char *fname);
+		FsMaker(char *fname) : FsIO(fname) {}
 		public:
 		static FsMaker *create(char *fname);
 		~FsMaker();
@@ -203,12 +277,23 @@ namespace Tarfs {
 		void add(File *file);
 		void complete(); /* write super block */
 		void rollback(); /* error case only */
-		void createBlock(TARBLK *blkno, TARBLK nblks);
 		void readBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 		void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 		inline SpaceManager *getDirManager() { return this->dirmgr; }
 		inline SpaceManager *getIexManager() { return this->iexmgr; }
 		inline SpaceManager *getDinodeManager() { return this->dinodemgr; }
+	};
+	class FsReader : public FsIO {
+		private:
+		FsReader(char *fname) : FsIO(fname) {}
+		public:
+		enum TarfileType {
+			DEVFILE,
+			TARFILE,
+		};
+		~FsReader();
+		static FsReader *create(char *tarfile, TarfileType type);
+		tarfs_dinode *getFreeDinode();
 	};
 }
 

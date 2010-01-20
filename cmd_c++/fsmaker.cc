@@ -1,12 +1,6 @@
 #include "tarfs.h"
 using namespace Tarfs;
 
-FsMaker::FsMaker(char *fname)
-{
-	::memset(this->fname, 0, MAXPATHLEN);
-	::memcpy(this->fname, fname, strlen(fname));
-	this->fd = -1;
-}
 FsMaker *FsMaker::create(char *fname)
 {
 	int err;
@@ -20,7 +14,7 @@ FsMaker *FsMaker::create(char *fname)
 	fsmaker->dirmgr = NULL;
 	fsmaker->iexmgr = NULL;
 	fsmaker->dinodemgr = NULL;
-	fsmaker->fd = ::open(fsmaker->fname, O_RDWR);
+	fsmaker->fd = ::open(fsmaker->fname, O_RDWR|O_LARGEFILE);
 	if (fsmaker->fd < 0) {
 		::fprintf(stderr, "open(2) %s err=%d\n", fsmaker->fname, errno);
 		delete fsmaker;

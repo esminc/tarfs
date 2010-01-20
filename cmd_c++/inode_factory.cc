@@ -6,18 +6,30 @@ TARINO InodeFactory::inodeNum;
 TARBLK InodeFactory::totalDataSize;
 Inode* InodeFactory::freeInode;
 
-Inode *InodeFactory::getInode(FsMaker *fs, TARINO ino, TARINO pino, int ftype)
+Inode *InodeFactory::getInode(FsIO *fsio, TARINO ino, TARINO pino)
 {
 	Inode *inode;
 	TARBLK blkno;
-	InodeFactory::freeInode->getBlock(fs, ino, &blkno);
+	InodeFactory::freeInode->getBlock(fsio, ino, &blkno);
+	inode = new Inode(ino, pino, blkno, fsio);
+	if (inode && inode->isDir()) {
+		delete inode;
+		inode = new Dir(ino, pino, blkno, fsio);
+	}
+	return inode;
+}
+Inode *InodeFactory::getInode(FsIO *fsio, TARINO ino, TARINO pino, int ftype)
+{
+	Inode *inode;
+	TARBLK blkno;
+	InodeFactory::freeInode->getBlock(fsio, ino, &blkno);
 	if (ftype == TARFS_IFDIR) {
-		inode = new Dir(ino, pino, blkno, fs);
+		inode = new Dir(ino, pino, blkno, fsio);
 	} else {
-		inode = new Inode(ino, pino, blkno, fs);
+		inode = new Inode(ino, pino, blkno, fsio);
 	}
 	if (!inode) {
-		fs->rollback();
+		fsio->rollback();
 	}
 	return inode;
 }
@@ -65,6 +77,16 @@ Inode *InodeFactory::allocInode(FsMaker *fs, TARINO pino, File *file)
 	return inode;
 }
 
+bool InodeFactory::load(FsIO *fsio, TARBLK freeInodeBlkno)
+{
+	Inode *inode = new Inode(TARFS_FREE_INO, TARFS_FREE_INO, freeInodeBlkno, fsio);
+	if (!inode) {
+		return false;
+	}
+	InodeFactory::freeInode = inode;
+	return true;
+}
+
 bool InodeFactory::init(FsMaker *fs)
 {
 	tarfs_dext de;
@@ -85,9 +107,9 @@ bool InodeFactory::init(FsMaker *fs)
 	InodeFactory::totalDataSize = 0;
 	return true;
 }
-void InodeFactory::fin(FsMaker *fs)
+void InodeFactory::fin(FsIO *fsio)
 {
-	InodeFactory::freeInode->sync(fs);
+	InodeFactory::freeInode->sync(fsio);
 	delete InodeFactory::freeInode;
 	InodeFactory::freeInode = NULL;
 }

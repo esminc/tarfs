@@ -38,7 +38,7 @@ void Dir::dirInit(FsMaker *fs)
 	this->dinode.di_size = TAR_BLOCKSIZE;
 	return;
 }
-Inode* Dir::lookup(FsMaker *fs, char *name)
+Inode* Dir::lookup(FsIO *fsio, char *name)
 {
 	TAROFF off = 0;
 	TAROFF endoff = this->dinode.di_size;
@@ -49,8 +49,8 @@ Inode* Dir::lookup(FsMaker *fs, char *name)
 
 	while (off < endoff) {
 		if ((off & (TAR_BLOCKSIZE -1)) == 0) { // 512 align
-			this->getBlock(fs, off/TAR_BLOCKSIZE, &dirblkno);
-			fs->readBlock(dirbuf, dirblkno, 1);
+			this->getBlock(fsio, off/TAR_BLOCKSIZE, &dirblkno);
+			fsio->readBlock(dirbuf, dirblkno, 1);
 			direct = (tarfs_direct*)dirbuf;
 		}
 		/* exist entry check */
@@ -64,7 +64,7 @@ Inode* Dir::lookup(FsMaker *fs, char *name)
 	return NULL;
 done:
 	int ftype = TARFS_FTYPE_DIR2DINODE(direct->d_ftype);
-	return InodeFactory::getInode(fs, direct->d_ino, this->ino, ftype);
+	return InodeFactory::getInode(fsio, direct->d_ino, this->ino, ftype);
 }
 void Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
 {
@@ -173,4 +173,29 @@ Inode* Dir::create(FsMaker *fs, File *file)
 	this->searchFreeSpace(fs, name, &dfs);
 	this->addDirEntry(fs, name, &dfs, inode);
 	return inode;
+}
+void Dir::printDirEntry(FsIO *fsio)
+{
+	int i;
+	TARBLK dirblkno = 0;
+	TAROFF off = 0;
+	TAROFF endoff = this->dinode.di_size;
+	char dirbuf[TAR_BLOCKSIZE];
+	tarfs_direct *direct;
+
+	while (off < endoff) {
+		if ((off & (TAR_BLOCKSIZE -1)) == 0) { // 512 align
+			this->getBlock(fsio, off/TAR_BLOCKSIZE, &dirblkno);
+			fsio->readBlock(dirbuf, dirblkno, 1);
+			direct = (tarfs_direct_t*)dirbuf;
+		}
+		printf("d_ino=%4llu d_reclen=%3d d_namelen=%2d d_ftype=%d name=",
+			direct->d_ino, direct->d_reclen, direct->d_namelen, direct->d_ftype);
+		for (i = 0; i < direct->d_namelen; i++){
+			printf("%c", direct->d_name[i]);
+		}
+		printf("\n");
+		off += direct->d_reclen;
+		direct = (tarfs_direct_t*)(((char*)direct) + direct->d_reclen);
+	}
 }

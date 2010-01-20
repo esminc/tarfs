@@ -6,19 +6,44 @@
 #define TAR_BLOCKSIZE	512
 #define TAR_BLOCKBITS	9
 
-#define TARFS_REGTYPE  '0'
+/**
+ * typeflag
+ */
+#define TARFS_REGTYPE  '0'	/* regular file */
+#define TARFS_SYMTYPE  '2'	/* symlink file */
+#define TARFS_DIRTYPE  '5'	/* directory file */
+#define TARFS_GNU_LONGNAME 'L'	/* file name len > 100 */
+struct posix_header
+{				/* dec:oct : */
+	char name[100];		/*   0:00000: file name */
+	char mode[8];		/* 100:00144: file mode */
+	char uid[8];		/* 108:00154: uid */
+	char gid[8];		/* 116:00164: gid */
+	char size[12];		/* 124:00174: file size */
+	char mtime[12];		/* 136:00210: mtime */
+	char chksum[8];		/* 148:00224: chksum */
+	char typeflag;		/* 156:00234: typeflag */
+  	char linkname[100];	/* 157:00235: linkname */
+	char magic[6];		/* 257:00401: magic */
+	char version[2];	/* 263:00407: version */
+	char uname[32];		/* 265:00409 user name */
+	char gname[32];		/* 297:00451: group name */
+	char devmajor[8];	/* 329:00511: dev major */
+	char devminor[8];	/* 337:00521: dev minor */
+	char padding[167];	/* 345:00531: padding */
+};				/* 512:01000: */
+
+/**
+ * not support typeflag
+ */
 #define TARFS_AREGTYPE '\0'
 #define TARFS_LNKTYPE  '1'
-#define TARFS_SYMTYPE  '2'
 #define TARFS_CHRTYPE  '3'
 #define TARFS_BLKTYPE  '4'
-#define TARFS_DIRTYPE  '5'
 #define TARFS_FIFOTYPE '6'
 #define TARFS_CONTTYPE '7'
-
 #define TARFS_GNU_DUMPDIR  'D'
-#define TARFS_GNU_LONGLINK 'K'
-#define TARFS_GNU_LONGNAME 'L'
+#define TARFS_GNU_LONGLINK 'K'	/* symlink name len > 100 */
 #define TARFS_GNU_MULTIVOL 'M'
 #define TARFS_GNU_NAMES    'N'
 #define TARFS_GNU_SPARSE   'S'
@@ -29,27 +54,6 @@
 #define TARFS_SGID     02000
 #define TARFS_SVTX     01000
 #define TARFS_MODEMASK 00777
-
-struct posix_header
-{
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char chksum[8];
-  char typeflag;
-  char linkname[100];
-  char magic[6];
-  char version[2];
-  char uname[32];
-  char gname[32];
-  char devmajor[8];
-  char devminor[8];
-  char prefix[155];
-  char padding[12];
-};
 
 #define	TARSBLOCK_MAGIC	((uint64_t)0xbeafcafe)
 #define	TARDINODE_MAGIC	((uint64_t)0xdacbdacb)
