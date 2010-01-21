@@ -227,7 +227,7 @@ namespace Tarfs {
 			return sbp;
 		}
 		virtual void rollback() {}
-		virtual void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks) {}
+		virtual void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks) = 0;
 		virtual void readBlock(char* bufp, TARBLK blkno, ssize_t nblks) 
 		{
 			ssize_t res;
@@ -294,6 +294,7 @@ namespace Tarfs {
 		~FsReader();
 		static FsReader *create(char *tarfile, TarfileType type);
 		tarfs_dinode *getFreeDinode();
+		void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 	};
 }
 

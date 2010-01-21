@@ -68,4 +68,8 @@ tarfs_dinode *FsReader::getFreeDinode()
 	Inode *freeInode = InodeFactory::getFreeInode();
 	return freeInode->getDinodeImage();
 }
+void FsReader::writeBlock(char* bufp, TARBLK blkno, ssize_t nblks)
+{
+	return;
+}
 
