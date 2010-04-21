@@ -46,7 +46,7 @@ FsReader *FsReader::create(char *fname, TarfileType type)
 	fsreader->readBlock((char*)&fsreader->sb, (fsreader->blks - 1), 1);
 	if (fsreader->sb.tarfs_magic != TARSBLOCK_MAGIC) {
 		/* not completed mkfs_tar */
-		::fprintf(stderr, "please do mkfs.tarfs\n");
+		::fprintf(stderr, "ERR: can not found tarfs metadata.\n");
 		delete fsreader;
 		return NULL;
 	}

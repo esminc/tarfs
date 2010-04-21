@@ -216,6 +216,7 @@ namespace Tarfs {
 			this->fd = -1;
 		}
 		public:
+		TARBLK getFileSize() { return this->blks; }
 		tarfs_sblock *getSblock()
 		{
 			tarfs_sblock *sbp;

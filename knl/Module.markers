@@ -1,0 +1,7 @@
+core_marker_format	vmlinux	name %s format %s
+ext4_discard_blocks	vmlinux	dev %s blk %llu count %u
+ext4_sync_file	vmlinux	dev %s datasync %d ino %ld parent %ld
+ext4_sync_fs	vmlinux	dev %s wait %d
+jbd2_checkpoint	vmlinux	dev %s need_checkpoint %d
+jbd2_end_commit	vmlinux	dev %s transaction %d head %d
+jbd2_start_commit	vmlinux	dev %s transaction %d

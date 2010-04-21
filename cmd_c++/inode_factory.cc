@@ -109,8 +109,10 @@ bool InodeFactory::init(FsMaker *fs)
 }
 void InodeFactory::fin(FsIO *fsio)
 {
-	InodeFactory::freeInode->sync(fsio);
-	delete InodeFactory::freeInode;
-	InodeFactory::freeInode = NULL;
+	if (InodeFactory::freeInode) {
+		InodeFactory::freeInode->sync(fsio);
+		delete InodeFactory::freeInode;
+		InodeFactory::freeInode = NULL;
+	}
 }
 
