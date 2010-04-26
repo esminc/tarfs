@@ -61,10 +61,12 @@ void Inode::setFile(File *file)
 	this->dinode.di_mtime = file->getMtime();
 	this->dinode.di_mtime *=1000000;
 	this->dinode.di_atime = this->dinode.di_ctime = this->dinode.di_mtime;
-	this->dinode.di_size =file->getFileSize();
-	this->dinode.di_blocks = file->getBlocks();
-	this->dinode.di_nExtents = file->getNumExtents();;
-	file->getExtent(&(this->dinode.di_directExtent[0]));
+	if (file->getFtype() != TARFS_IFDIR) {
+		this->dinode.di_size =file->getFileSize();
+		this->dinode.di_blocks = file->getBlocks();
+		this->dinode.di_nExtents = file->getNumExtents();;
+		file->getExtent(&(this->dinode.di_directExtent[0]));
+	}
 	return;
 }
 int Inode::getDirFtype()
