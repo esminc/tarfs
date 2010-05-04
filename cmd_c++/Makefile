@@ -10,6 +10,8 @@ INC=-I../include -I.
 .cc.o:
 	g++ $(INC) $(CFLAGS) -o $@ -c $<
 
+all: $(TARGETS)
+
 mkfs.tarfs: $(OBJS)
 	g++ $(INC) $(CFLAGS) -o mkfs.tarfs mkfs_tarfs.cc $(OBJS)
 
@@ -22,7 +24,6 @@ tarfscheck: $(OBJS)
 detachtarfs: $(OBJS)
 	g++ $(INC) $(CFLAGS) -o detachtarfs detachtarfs.cc $(OBJS)
 
-all: $(TARGETS)
 
 install: $(TARGETS)
 	cp $(TARGETS) /sbin/

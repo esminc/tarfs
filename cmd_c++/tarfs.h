@@ -185,9 +185,9 @@ namespace Tarfs {
 	 * ディスクスペースを管理するクラス
 	 */
 	class SpaceManager {
-#define	ALLOC_DIRDATA_NUM	128
-#define	ALLOC_IEXDATA_NUM	128
-#define	ALLOC_DINODE_NUM	128
+#define	ALLOC_DIRDATA_NUM	256
+#define	ALLOC_IEXDATA_NUM	256
+#define	ALLOC_DINODE_NUM	256
 		private:
 		TARBLK blkno;
 		int bulks;
@@ -243,20 +243,20 @@ namespace Tarfs {
 		void printSblock()
 		{
 			tarfs_sblock *sbp = &this->sb;
-			printf("#tarfs_magic:0x%llx\n", sbp->tarfs_magic);
+			//printf("#tarfs_magic:0x%llx\n", sbp->tarfs_magic);
 			printf("#tarfs_inode:%llu\n", sbp->tarfs_inodes);
 			printf("#tarfs_size:%llu\n", sbp->tarfs_size);
-			printf("#tarfs_fsize:%llu\n", sbp->tarfs_fsize);
+			//printf("#tarfs_fsize:%llu\n", sbp->tarfs_fsize);
 			printf("#tarfs_dsize:%llu\n", sbp->tarfs_dsize);
-			printf("#tarfs_flist_regdata:%llu\n", sbp->tarfs_flist_regdata);
-			printf("#tarfs_flist_dirdata:%llu\n", sbp->tarfs_flist_dirdata);
-			printf("#tarfs_flist_iexdata:%llu\n", sbp->tarfs_flist_iexdata);
-			printf("#tarfs_flist_indDinode:%llu\n", sbp->tarfs_flist_indDinode);
-			printf("#tarfs_flist_dinode:%llu\n", sbp->tarfs_flist_dinode);
-			printf("#tarfs_root:%llu\n", sbp->tarfs_root);
-			printf("#tarfs_free:%llu\n", sbp->tarfs_free);
-			printf("#tarfs_flags:0x%llx\n", sbp->tarfs_flags);
-			printf("#tarfs_maxino:%llu\n", sbp->tarfs_maxino);
+			//printf("#tarfs_flist_regdata:%llu\n", sbp->tarfs_flist_regdata);
+			//printf("#tarfs_flist_dirdata:%llu\n", sbp->tarfs_flist_dirdata);
+			//printf("#tarfs_flist_iexdata:%llu\n", sbp->tarfs_flist_iexdata);
+			//printf("#tarfs_flist_indDinode:%llu\n", sbp->tarfs_flist_indDinode);
+			//printf("#tarfs_flist_dinode:%llu\n", sbp->tarfs_flist_dinode);
+			printf("#tarfs_inode_0:%llu\n", sbp->tarfs_free);
+			printf("#tarfs_inode_1:%llu\n", sbp->tarfs_root);
+			//printf("#tarfs_flags:0x%llx\n", sbp->tarfs_flags);
+			//printf("#tarfs_maxino:%llu\n", sbp->tarfs_maxino);
 		}
 	};
 	/**
