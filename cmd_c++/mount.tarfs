@@ -18,7 +18,7 @@ if [ -f ${TAR} ]
 then
 	:
 else
-	echo "No such tarfile.."
+	echo "No such tarfile..:${TAR}"
 	exit 1
 fi
 if [ -d ${MNT} ]

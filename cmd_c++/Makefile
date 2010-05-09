@@ -26,7 +26,8 @@ detachtarfs: $(OBJS)
 
 
 install: $(TARGETS)
-	cp $(TARGETS) /sbin/
+	cp mount.tarfs $(TARGETS) /sbin/
+	chmod +x /sbin/mount.tarfs
 
 uninstall:
 	rm -f /sbin/mkfs.tarfs

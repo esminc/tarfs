@@ -1,0 +1,46 @@
+このファイルは、tarfs のインストール/アンインストール方法を説明するものです。
+
+○対象カーネル版数
+  2.6.28(※)
+※Ubuntu 9.04 で確認。
+
+○ディレクトリ構成
+ knl ... tarfsカーネルソースの配置ディレクトリ
+ cmd ... 現状、未使用のコマンドのソース
+ cmd_c++ ... tarfs コマンドのソース
+ include ... インクルードファイル
+ test_cmd_c++ ... コマンドのテスト用ディレクトリ
+
+○コンパイル
+１．knl配下で、以下のコマンドを実行する。
+    make clean;make
+２．cmd_c++配下で、以下のコマンドを実行する。
+    make clean;make; 
+    chmod +x mount.tarfs
+    sudo make install
+
+○インストール/アンインストール手順
+
+【インストール】
+１．knl配下で以下のコマンドを実行する。
+    insmod tarfs.ko
+２．cmd_c++配下で以下のコマンドを実行する。
+     make install
+
+【アンインストール】
+１．アンマウントされていることを確認する。
+２．任意のディレクトリで、以下のコマンドを実行し、tarfsのカーネルモジュールを削除する。
+    rmmod tarfs
+３．cmd_c++配下で、以下のコマンドを実行し、コマンドモジュールを削除する。
+     make uninstall
+
+○マウントの手順
+  sudo mount -t tarfs tarfile mnt
+※ -t tarfs：ファイルシステムタイプとしてtarファイルシステム（tarfs）を指定
+※  tarfile：tarファイル
+※ mnt：マウントポイント
+
+○アンマウントの手順
+  sudo umount mnt
+※ mnt：マウントポイント
+
