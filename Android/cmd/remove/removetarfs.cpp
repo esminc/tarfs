@@ -26,7 +26,16 @@ main(int argc, const char* argv[])
 	::free(sbp);
 	delete fsreader;
 
-	err = truncate(tarfile, orgblk*TAR_BLOCKSIZE);
+    int fd = ::open(tarfile, O_RDWR);
+    if (fd >= 0) {
+    	err = ::ftruncate(fd, orgblk*TAR_BLOCKSIZE);
+        if (err < 0) {
+            err = errno;
+        }
+        ::close(fd);
+    } else {
+        err = errno;
+    }
 	if (err != 0) {
 		fprintf(stderr, "truncate(2) err=%d\n", errno);
 		return 1;

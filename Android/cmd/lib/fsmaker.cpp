@@ -107,8 +107,8 @@ void FsMaker::add(File *file)
 {
 	int i;
 	Dir *dir;
-	Dir *nextDir;
-	Inode *inode;
+	Dir *nextDir = NULL;
+	Inode *inode = NULL;
 
 	for (dir = this->root, i = 0; i < file->entSize(); i++, dir = nextDir) {
 		char *name = (*file)[i]; /* name in path */

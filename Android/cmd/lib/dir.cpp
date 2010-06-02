@@ -44,7 +44,7 @@ Inode* Dir::lookup(FsIO *fsio, char *name)
 	TAROFF endoff = this->dinode.di_size;
 	TARBLK dirblkno;
 	char 	 dirbuf[TAR_BLOCKSIZE];
-	tarfs_direct *direct;
+	tarfs_direct *direct = NULL;
 	int len = ::strlen(name);
 
 	while (off < endoff) {
@@ -72,7 +72,7 @@ void Dir::searchFreeSpace(FsMaker *fs, char *name, dirFreeSpace *dfs)
 	TAROFF endoff = this->dinode.di_size;
 	TARBLK dirblkno;
 	char 	 dirbuf[TAR_BLOCKSIZE];
-	tarfs_direct *direct;
+	tarfs_direct *direct = NULL;
 	int len = ::strlen(name);
 	int needspace = DIRENT_SIZE(len);
 	int freesize;
@@ -181,7 +181,7 @@ void Dir::printDirEntry(FsIO *fsio)
 	TAROFF off = 0;
 	TAROFF endoff = this->dinode.di_size;
 	char dirbuf[TAR_BLOCKSIZE];
-	tarfs_direct *direct;
+	tarfs_direct *direct = NULL;
 
 	while (off < endoff) {
 		if ((off & (TAR_BLOCKSIZE -1)) == 0) { // 512 align
