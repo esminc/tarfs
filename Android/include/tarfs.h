@@ -33,17 +33,17 @@ typedef uint64_t TARNEXT; /* num extents */
 
 #define TARFS_IO_R	0x1
 #define TARFS_IO_W	0x2
-#define TARFS_IO(ret, io, fd, bufp, off, size) 			\
+#define TARFS_IO(ret, io, fd, bufp, size, off) 			\
 do {								\
 	(ret) = 0;						\
 	off_t _ret = ::lseek((fd), (off), SEEK_SET);		\
-	if (_ret == (off)) {					\
+	if (_ret == (off_t)(off)) {					\
 		if ((io) == TARFS_IO_R) {			\
 			_ret = ::read((fd), (bufp), (size));	\
 		} else {					\
 			_ret = ::write((fd), (bufp), (size));	\
 		}						\
-		if (_ret == (off)) {				\
+		if (_ret == (off_t)(off)) {				\
 			(ret) = 0;				\
 		} else {					\
 			(ret) = errno;				\
@@ -236,6 +236,7 @@ namespace Tarfs {
 			::memcpy(this->fname, fname, strlen(fname));
 			this->fd = -1;
 		}
+        virtual ~FsIO() {}
 		public:
 		TARBLK getFileSize() { return this->blks; }
 		tarfs_sblock *getSblock()
@@ -305,6 +306,7 @@ namespace Tarfs {
 		inline SpaceManager *getIexManager() { return this->iexmgr; }
 		inline SpaceManager *getDinodeManager() { return this->dinodemgr; }
 	};
+#define ANDROID_MAX_RAMDISK_SIZE	(8192*1024) //MB
 	class FsReader : public FsIO {
 		private:
 		FsReader(char *fname) : FsIO(fname) {}
@@ -315,6 +317,7 @@ namespace Tarfs {
 		};
 		~FsReader();
 		static FsReader *create(char *tarfile, TarfileType type);
+		static FsReader *create(char *tarfile, char *ramdisk);
 		tarfs_dinode *getFreeDinode();
 		void writeBlock(char* bufp, TARBLK blkno, ssize_t nblks);
 	};
