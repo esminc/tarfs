@@ -91,6 +91,7 @@ int tarfs_read_inode (struct inode * inode)
 		goto errdone;
 	}
 	memcpy(dp, io.io_data, TAR_BLOCKSIZE);
+	ASSERT(dp->di_magic == TARDINODE_MAGIC);
 	io.oper->bput(&io);
 
 	inode->i_mode = ((tarfs_dinode_t*)(dp))->di_mode;
