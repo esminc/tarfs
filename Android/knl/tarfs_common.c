@@ -39,6 +39,7 @@ tarfs_getDataBlock(tarfs_io_t *iop, tarfs_dinode_t *ip, uint64_t off, uint64_t *
 			goto errdone;
 		}
 		indExtp = (tarfs_indExt_t*)iop->io_data;
+		ASSERT(indExtp->ie_magic == TARINDE_MAGIC);
 		for (i = 0; i < indExtp->ie_num; i++) {
 			iextp = &indExtp->ie_dext[i];
 			if (iextp->de_off <= off &&
