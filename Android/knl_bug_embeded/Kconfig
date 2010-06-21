@@ -1,0 +1,10 @@
+#
+# TARFS file system configurations
+#
+
+config TARFS_FS
+    tristate "TARFS file system support"
+    default n
+    help
+        tar file system is aimed to read tar archived file on the filesystem.
+

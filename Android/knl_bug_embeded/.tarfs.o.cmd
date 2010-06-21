@@ -1,0 +1,1 @@
+cmd_fs/tarfs/tarfs.o := ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-ld -EL    -r -o fs/tarfs/tarfs.o fs/tarfs/dir.o fs/tarfs/file.o fs/tarfs/inode.o fs/tarfs/namei.o fs/tarfs/super.o fs/tarfs/tarfs_common.o fs/tarfs/tarfs_common_lnx.o 

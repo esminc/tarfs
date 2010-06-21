@@ -1,0 +1,48 @@
+1. kernel source download
+$ mkdir kernel
+$ cd kernel/
+$ git clone git://android.git.kernel.org/kernel/common.git
+$ cd common
+$ git checkout -b android-goldfish-2.6.29 origin/android-goldfish-2.6.29
+$ pwd
+<kernel-downloaed-dir>
+
+
+2. insert <mydir>/knl into kernel/fs/tarfs
+$ cp -rp <mydir>/knl <kernel-downloaded-dir>/kernel/fs/tarfs
+
+3. add tarfs on fs/Kconfig
+=====
+config FS_MBCACHE
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
+        tristate
+        default y if EXT2_FS=y && EXT2_FS_XATTR
+        default y if EXT3_FS=y && EXT3_FS_XATTR
+        default y if EXT4_FS=y && EXT4_FS_XATTR
+        default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+
+source "fs/reiserfs/Kconfig"
+source "fs/jfs/Kconfig"
++source "fs/tarfs/Kconfig"
+=====
+
+4. add tarfs on fs/Makefile
+=====
+obj-$(CONFIG_BTRFS_FS)          += btrfs/
+obj-$(CONFIG_GFS2_FS)           += gfs2/
++ obj-$(CONFIG_TARFS_FS)           += tarfs/
+=====
+
+5. add tarfs on configure
+$ export ARCH=arm
+$ export CROSS_COMPILE=<platform-dir>/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
+$ make goldfish_defconfig
+$ make menuconfig
+===> Filesystem -> check TARFS!!
+
+6. compile
+$ make -j4 2>&1 |tee make.log
+
+7. start Android emulator
+$ emulator -kernel zImage @<Virtual Android Device>
+
