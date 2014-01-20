@@ -96,7 +96,11 @@ int tarfs_read_inode (struct inode * inode)
 	inode->i_mode = ((tarfs_dinode_t*)(dp))->di_mode;
 	inode->i_uid = ((tarfs_dinode_t*)(dp))->di_uid;
 	inode->i_gid = ((tarfs_dinode_t*)(dp))->di_gid;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
 	inode->i_nlink = ((tarfs_dinode_t*)(dp))->di_nlink;
+#else
+	set_nlink(inode, ((tarfs_dinode_t*)(dp))->di_nlink);
+#endif
 	inode->i_size = ((tarfs_dinode_t*)(dp))->di_size;
 
 	atime = dp->di_atime;
