@@ -138,7 +138,9 @@ static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
 	sb->s_op = &tarfs_sops;
 	sb->s_time_gran = 1000;
 	sb->s_flags = MS_RDONLY;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
 	sb->s_dirt = 0;
+#endif
 
 	// set free dinode 
 	t_dp->di_magic = s_dp->di_magic;
