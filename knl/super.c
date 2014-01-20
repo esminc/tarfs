@@ -168,16 +168,28 @@ static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 static int tarfs_get_sb(struct file_system_type *fs_type,
 			int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	return get_sb_bdev(fs_type, flags, dev_name, data, tarfs_fill_super, mnt);
 }
+#else
+static struct dentry *tarfs_mount(struct file_system_type *fs_type,
+				  int flags, const char *dev_name, void *data)
+{
+	return mount_bdev(fs_type, flags, dev_name, data, tarfs_fill_super);
+}
+#endif
 
 static struct file_system_type tar_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "tarfs",
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 	.get_sb		= tarfs_get_sb,
+#else
+	.mount		= tarfs_mount,
+#endif
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
