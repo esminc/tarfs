@@ -164,7 +164,11 @@ static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
 		printk("%s err can not allocate\n",__FUNCTION__);
 		return -ENOMEM; 
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 	sb->s_root = d_alloc_root(ip);
+#else
+	sb->s_root = d_make_root(ip);
+#endif
 	return 0;
 }
 
