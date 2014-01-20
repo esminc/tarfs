@@ -69,13 +69,26 @@ static void tarfs_clear_inode(struct inode *inode)
 	return;
 }	
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+static void tarfs_evict_inode(struct inode *inode) 
+{
+	truncate_inode_pages(inode->i_mapping, 0);
+	end_writeback(inode);
+	tarfs_clear_inode(inode);
+}
+#endif
+
 extern void tarfs_read_inode(struct inode* ip);
 
 static struct super_operations tarfs_sops = {
 	put_super:      tarfs_put_super,
 	statfs:         tarfs_statfs,
 	remount_fs:     tarfs_remount,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	clear_inode:    tarfs_clear_inode,
+#else
+	evict_inode:    tarfs_evict_inode,
+#endif
 };
 
 static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
