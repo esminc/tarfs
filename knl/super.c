@@ -73,7 +73,11 @@ static void tarfs_clear_inode(struct inode *inode)
 static void tarfs_evict_inode(struct inode *inode) 
 {
 	truncate_inode_pages(inode->i_mapping, 0);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
 	end_writeback(inode);
+#else
+	clear_inode(inode);
+#endif
 	tarfs_clear_inode(inode);
 }
 #endif
