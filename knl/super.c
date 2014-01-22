@@ -69,13 +69,30 @@ static void tarfs_clear_inode(struct inode *inode)
 	return;
 }	
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+static void tarfs_evict_inode(struct inode *inode) 
+{
+	truncate_inode_pages(inode->i_mapping, 0);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
+	end_writeback(inode);
+#else
+	clear_inode(inode);
+#endif
+	tarfs_clear_inode(inode);
+}
+#endif
+
 extern void tarfs_read_inode(struct inode* ip);
 
 static struct super_operations tarfs_sops = {
 	put_super:      tarfs_put_super,
 	statfs:         tarfs_statfs,
 	remount_fs:     tarfs_remount,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	clear_inode:    tarfs_clear_inode,
+#else
+	evict_inode:    tarfs_evict_inode,
+#endif
 };
 
 static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
@@ -121,7 +138,9 @@ static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
 	sb->s_op = &tarfs_sops;
 	sb->s_time_gran = 1000;
 	sb->s_flags = MS_RDONLY;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
 	sb->s_dirt = 0;
+#endif
 
 	// set free dinode 
 	t_dp->di_magic = s_dp->di_magic;
@@ -151,20 +170,36 @@ static int tarfs_fill_super (struct super_block *sb, void *data, int silent)
 		printk("%s err can not allocate\n",__FUNCTION__);
 		return -ENOMEM; 
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 	sb->s_root = d_alloc_root(ip);
+#else
+	sb->s_root = d_make_root(ip);
+#endif
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 static int tarfs_get_sb(struct file_system_type *fs_type,
 			int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	return get_sb_bdev(fs_type, flags, dev_name, data, tarfs_fill_super, mnt);
 }
+#else
+static struct dentry *tarfs_mount(struct file_system_type *fs_type,
+				  int flags, const char *dev_name, void *data)
+{
+	return mount_bdev(fs_type, flags, dev_name, data, tarfs_fill_super);
+}
+#endif
 
 static struct file_system_type tar_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "tarfs",
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 	.get_sb		= tarfs_get_sb,
+#else
+	.mount		= tarfs_mount,
+#endif
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

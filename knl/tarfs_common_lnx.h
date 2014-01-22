@@ -21,7 +21,9 @@
 #include <linux/parser.h>
 #include <linux/random.h>
 #include <linux/buffer_head.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 #include <linux/smp_lock.h>
+#endif
 #include <linux/vfs.h>
 #include <linux/time.h>
 #include <linux/namei.h>

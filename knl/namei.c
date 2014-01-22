@@ -1,6 +1,6 @@
 #include "tarfs_common_lnx.h"
 
-static struct dentry *tarfs_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *__tarfs_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
 {
 	int err = 0;
 	tarfs_dinode_t *parentp = NULL;
@@ -51,6 +51,18 @@ errdone:
 	}
 	return ERR_PTR(err);
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
+static struct dentry *tarfs_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
+{
+	return __tarfs_lookup(dir, dentry, nd);
+}
+#else
+static struct dentry *tarfs_lookup(struct inode * dir, struct dentry *dentry, unsigned int nd)
+{
+	return __tarfs_lookup(dir, dentry, (struct nameidata *)nd);
+}
+#endif
 
 struct inode_operations tarfs_dir_inode_operations = {
 	lookup:	tarfs_lookup,
